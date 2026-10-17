@@ -6,11 +6,11 @@ Tracks which kata each member of **Scarborough Academy of Karate (SKA)** knows. 
 
 | Piece | Location |
 | --- | --- |
-| Live app | https://ska-kata-tracker.pages.dev/ (Cloudflare Pages from `main` of `Dailuo-source/SKA-Kata-Tracker`, no build step). Never put Gary's full name in a web address |
+| Live app | https://dailuo-source.github.io/SKA-Kata-Tracker/ (GitHub Pages from `main`, root folder, `.nojekyll`, no build step). Never put Gary's full name in a web address |
 | Database | Google Sheet **S.A. Karate Kata Tracker** in garyluo.gs@gmail.com's Drive, id `1QYVdiW5kZ5j-EvSQzZJ-GE12ZqwY2OUgTsSIzIloiHk` |
 | Backend | Apps Script project **Karate Kata List** bound to the sheet (id `111lCaHWu0gtPF8-jiEXuhYeEqizKrjg1Kh4eybj7NU7gigJ48_1eN8xD`); source is `Code.gs` here. Web app: `https://script.google.com/macros/s/AKfycbwnmXKngbUjC-NAThAD_s7R2JdaKGX5e9R3cjJYdQlkEoWbe84nbdILOKVVsGiRbIlpqw/exec` (Execute as Gary, access Anyone) |
 
-Why two addresses: the page used to be served by Apps Script itself, but on phones signed in to several Google accounts Google rewrites the link to `/macros/u/5/...` and shows "Sorry, unable to open the file". The page now lives on Cloudflare and calls the script with `fetch` (no cookies, so no account switching). Opening the old /exec link shows "The Kata Tracker has moved" with a button to the new address (keeping `?kata=` and `?from=`).
+Why two addresses: the page used to be served by Apps Script itself, but on phones signed in to several Google accounts Google rewrites the link to `/macros/u/5/...` and shows "Sorry, unable to open the file". The page now lives on GitHub Pages and calls the script with `fetch` (no cookies, so no account switching). Opening the old /exec link shows "The Kata Tracker has moved" with a button to the new address (keeping `?kata=` and `?from=`).
 
 ## API (`Code.gs`)
 
@@ -41,7 +41,8 @@ Why two addresses: the page used to be served by Apps Script itself, but on phon
 ## Changing things
 
 - Browser: Gary has several Chrome instances connected; the one signed in to garyluo.gs@gmail.com, GitHub (Dailuo-source) and Cloudflare is **GARYMAIN**.
-- Page: edit `index.html`, commit, push to `main`; Cloudflare deploys in about a minute.
+- Page: edit `index.html`, commit, push to `main`; GitHub Pages publishes in about a minute.
+- Hosting note: Gary's apps normally use Cloudflare Pages (Android won't install two apps from one site). This one went on GitHub Pages because the Claude extension can't open dash.cloudflare.com and Gary was away from his desktop. Pantry Pal is also on dailuo-source.github.io, so before making this an installable app, move it to Cloudflare Pages (project `ska-kata-tracker`, connect this repo, no build) and update `SITE_URL` in Code.gs and `KATA_SITE` in the Lesson Planner.
 - Code.gs: paste into the script project and redeploy (**Deploy → Manage deployments → pencil → New version**; the /exec URL stays the same). Through Claude in Chrome: open the project, set `monaco.editor.getModels()[0]` to the raw GitHub `Code.gs` (fetch by commit SHA), Ctrl+S, redeploy. Reading code out of Monaco needs chunks under ~1,000 characters with `=`/`;`/`&`/`?` swapped out, or the extension blocks the output.
 - Commits use author `Claude <noreply@anthropic.com>`.
 - Testing: Playwright with `script.google.com` routed to a mock that answers the three actions.

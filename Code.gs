@@ -10,7 +10,7 @@
  * Source of truth for this file: Code.gs in Dailuo-source/SKA-Kata-Tracker.
  */
 
-var SITE_URL = 'https://ska-kata-tracker.pages.dev/';
+var SITE_URL = 'https://dailuo-source.github.io/SKA-Kata-Tracker/';
 
 var TAB = {
   KATA: 'Kata',
