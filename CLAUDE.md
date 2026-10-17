@@ -18,6 +18,7 @@ Why two addresses: the page used to be served by Apps Script itself, but on phon
   - `getData()`: dojo name, belts (with colours), statuses, kata, active members, progress matrix. Never returns the password.
   - `verifyPin(pin)`: checks the password; returns the sheet's URL (only after a correct password). 8 wrong tries lock editing for 15 min.
   - `saveStatus(pin, member, kata, status, instructorName)`: writes one Progress cell ('' clears it) and appends to Log.
+- `GET ?api=rpc&callback=fn&action=…` (fallback route): same three actions answered as JavaScript `fn({ok,…})`, loaded with a `<script>` tag. Some phones (Gary's Android Chrome) never get fetch replies from Apps Script even though the script runs; the page switches to this route after one fetch failure. The password never goes in the URL: `verifyPin`/`saveStatus` send `t` (ms) and `h` = SHA-256 of `t:password[:member:kata:status]`; `t` must be within 15 min. `clientLog` (POST, sent by `sendBeacon`) writes what failed to the Executions log (look for "Kata Tracker page problem").
 - `GET ?api=summary`: every kata with rank belt, Learned at belt and how many active members still need it (counts only). Used by the SKA Lesson Planner.
 
 ## Sheet

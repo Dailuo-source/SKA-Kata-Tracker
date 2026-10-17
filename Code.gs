@@ -39,6 +39,9 @@ function doGet(e) {
     catch (err) { out = { ok: false, error: String(err && err.message || err) }; }
     return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
   }
+  if (p.api === 'rpc' && /^[A-Za-z_][A-Za-z0-9_]{0,60}$/.test(p.callback || '')) {
+    return rpc_(p);
+  }
   // The tracker moved to its own address (Google's /u/N/ account switching broke this
   // link on phones signed in to several Google accounts). Point old links there.
   var q = [];
@@ -65,7 +68,7 @@ function doPost(e) {
   var out;
   try {
     var body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
-    var fns = { getData: getData, verifyPin: verifyPin, saveStatus: saveStatus };
+    var fns = { getData: getData, verifyPin: verifyPin, saveStatus: saveStatus, clientLog: clientLog };
     var fn = fns[body.action];
     if (!fn) throw new Error('Unknown action.');
     out = { ok: true, result: fn.apply(null, Array.isArray(body.args) ? body.args : []) };
@@ -73,6 +76,58 @@ function doPost(e) {
     out = { ok: false, error: String((err && err.message) || err) };
   }
   return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * The fallback route, for browsers that can't read fetch replies from Apps Script.
+ * GET ?api=rpc&callback=fn&action=… answers as JavaScript: fn({ok, result|error}).
+ * A <script> tag can always load that, whatever the browser's cross-site rules.
+ * The password never goes in the address: instructor actions carry
+ * h = SHA-256 of "t:password:fields…", which this checks against the real password,
+ * and t (the phone's clock, ms) must be within 15 minutes, so an old link can't be replayed later.
+ */
+function rpc_(p) {
+  var out;
+  try {
+    var a = p.action;
+    if (a === 'getData') out = getData();
+    else if (a === 'verifyPin') { checkSigned_(p, []); out = { ok: true, sheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl() }; }
+    else if (a === 'saveStatus') {
+      checkSigned_(p, [p.member, p.kata, p.status]);
+      out = saveStatusChecked_(p.member, p.kata, p.status, p.who);
+    } else throw new Error('Unknown action.');
+    out = { ok: true, result: out };
+  } catch (err) {
+    out = { ok: false, error: String((err && err.message) || err) };
+  }
+  return ContentService.createTextOutput(p.callback + '(' + JSON.stringify(out) + ');')
+    .setMimeType(ContentService.MimeType.JAVASCRIPT);
+}
+
+function checkSigned_(p, fields) {
+  var cache = CacheService.getScriptCache();
+  var fails = Number(cache.get('pinFails') || 0);
+  if (fails >= MAX_PIN_FAILS) throw new Error('Too many wrong passwords. Editing is locked for 15 minutes.');
+  var t = Number(p.t);
+  if (!t || Math.abs(Date.now() - t) > 15 * 60 * 1000) throw new Error('This phone’s clock looks wrong. Check the time and try again.');
+  var real = getSettings_().pin;
+  var want = sha256Hex_([String(p.t), real].concat(fields.map(str_)).join(':'));
+  if (!real || str_(p.h).toLowerCase() !== want) {
+    cache.put('pinFails', String(fails + 1), LOCKOUT_SECONDS);
+    throw new Error('Wrong password.');
+  }
+  cache.remove('pinFails');
+}
+
+function sha256Hex_(s) {
+  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, s, Utilities.Charset.UTF_8)
+    .map(function (b) { return ('0' + (b & 255).toString(16)).slice(-2); }).join('');
+}
+
+/** A note from a phone that couldn't read a reply (shows in Apps Script → Executions). */
+function clientLog(info) {
+  console.log('Kata Tracker page problem: ' + JSON.stringify(info).slice(0, 3000));
+  return true;
 }
 
 /** Everything the page needs, in one call. No password is ever returned. */
@@ -101,7 +156,11 @@ function verifyPin(pin) {
 /** Sets one member's status for one kata. status '' clears it. */
 function saveStatus(pin, memberName, kataName, status, instructorName) {
   checkPin_(pin);
+  return saveStatusChecked_(memberName, kataName, status, instructorName);
+}
 
+/** The write itself, once the password has been checked. */
+function saveStatusChecked_(memberName, kataName, status, instructorName) {
   var settings = getSettings_();
   memberName = str_(memberName);
   kataName = str_(kataName);
