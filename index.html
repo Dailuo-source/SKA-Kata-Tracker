@@ -828,6 +828,8 @@ function applyLink() {
     state.fromPlanner = l.from === 'planner';
     state.tab = 'kata'; state.kata = l.kata; state.member = null;
     state.kataView = 'need';
+    // Record the kata as this history step, so closing the password panel stays on it.
+    try { history.replaceState(snapshot(), '', location.pathname); } catch (e) {}
     if (!state.pin) setTimeout(function () { openUnlock('Unlock to mark who has improved on ' + l.kata + '.'); }, 200);
   }
 }
