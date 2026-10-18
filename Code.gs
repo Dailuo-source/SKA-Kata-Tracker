@@ -615,6 +615,7 @@ function menuMakeCode_() {
   var admin = { name: 'Sheet menu', level: 'Admin', family: [], hasRow: false };
   setLevel_(ss, admin, name, level);
   var res = makeCode_(ss, admin, name);
+  SpreadsheetApp.flush();   // save the code before the pop-up, which can stay open for minutes
   ui.alert('Access code for ' + name,
     res.code + '\n\nLevel: ' + level + '\nGive this to them now. It isn’t stored and won’t be shown again. ' +
     'They sign in at ' + SITE_URL, ui.ButtonSet.OK);
