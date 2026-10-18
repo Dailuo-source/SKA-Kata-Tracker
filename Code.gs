@@ -1,11 +1,16 @@
 /**
  * S.A. Karate Kata Tracker: the backend.
  * Bound to the "S.A. Karate Kata Tracker" Google Sheet (Extensions > Apps Script).
- * The page itself is hosted at SITE_URL (Cloudflare Pages) and talks to this
- * script through doPost. The old /exec link now shows a "moved" page.
+ * The page itself is hosted at SITE_URL and talks to this script through doPost
+ * (or the ?api=rpc fallback). The old /exec link shows a "moved" page.
  *
- * Anyone can view progress. Changing a status requires the Instructor password
- * stored on the Settings tab (cell B3).
+ * Who sees what (Gary's rules):
+ *   Signed out  – the dojo's kata list only.
+ *   Member      – their own kata (and approved family members'); can ask for changes.
+ *   Moderator   – everyone's kata, makes changes, approves requests, Ready to grade.
+ *   Admin       – everything, plus access levels, access codes and family links.
+ * People sign in with a personal access code (Access tab). The old shared instructor
+ * password still works as Moderator access for now (see TEMPORARY PASSWORD below).
  *
  * Source of truth for this file: Code.gs in Dailuo-source/SKA-Kata-Tracker.
  */
@@ -17,19 +22,28 @@ var TAB = {
   MEMBERS: 'Members',
   PROGRESS: 'Progress',
   LOG: 'Log',
-  SETTINGS: 'Settings'
+  SETTINGS: 'Settings',
+  ACCESS: 'Access',
+  REQUESTS: 'Requests'
 };
+var ACCESS_HEAD = ['Name', 'Level', 'Code hash', 'Code made', 'Family', 'Last signed in', 'Notes'];
+var REQ_HEAD = ['ID', 'Time', 'Type', 'Member', 'Kata', 'From', 'To', 'Note', 'Sent by', 'State', 'Decided by', 'Decided at', 'Was'];
+var LEVELS = ['Member', 'Moderator', 'Admin'];
 
-var FIRST_KATA_COL = 3;      // Progress: A = Member, B = Belt (formula), C onward = kata
-var MAX_PIN_FAILS = 8;       // wrong password attempts before a lockout
-var LOCKOUT_SECONDS = 900;   // 15 minutes
+var FIRST_KATA_COL = 3;          // Progress: A = Member, B = Belt (formula), C onward = kata
+var MAX_SIGNIN_FAILS = 10;       // wrong codes/passwords before sign-in pauses
+var LOCKOUT_SECONDS = 900;       // 15 minutes
+var SESSION_DAYS = 400;
+var CLOCK_SLACK_MS = 15 * 60 * 1000;
+var CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';   // no 0/O, 1/I/L
+var TZ = 'America/Toronto';
 
 /* ---------- Web app ---------- */
 
 /**
- * A "moved" page for old links, or (with ?api=summary) a small JSON list of kata with how many
- * members still need each one. The SKA Lesson Planner reads the summary when an
- * instructor adds a dojo kata to a class. It has counts only, never names.
+ * ?api=summary: every kata with how many members still need it (counts only, no names),
+ * read by the SKA Lesson Planner. ?api=rpc&callback=…: the fallback route (see rpc_).
+ * Anything else: the "moved" page for old links.
  */
 function doGet(e) {
   var p = (e && e.parameter) || {};
@@ -40,10 +54,9 @@ function doGet(e) {
     return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
   }
   if (p.api === 'rpc' && /^[A-Za-z_][A-Za-z0-9_]{0,60}$/.test(p.callback || '')) {
-    return rpc_(p);
+    return ContentService.createTextOutput(p.callback + '(' + JSON.stringify(run_(p)) + ');')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
   }
-  // The tracker moved to its own address (Google's /u/N/ account switching broke this
-  // link on phones signed in to several Google accounts). Point old links there.
   var q = [];
   ['kata', 'from'].forEach(function (k) { if (p[k]) q.push(k + '=' + encodeURIComponent(p[k])); });
   var url = SITE_URL + (q.length ? '?' + q.join('&') : '');
@@ -60,136 +73,508 @@ function doGet(e) {
 }
 
 /**
- * The page's API. Body (sent as text/plain so browsers skip the CORS preflight):
- * { "action": "getData" | "verifyPin" | "saveStatus", "args": [...] }
- * Reply: { ok: true, result } or { ok: false, error }.
+ * The page's API. Body (text/plain, so browsers skip the CORS preflight):
+ * { action, a: JSON text of the arguments, p, t, h }   → { ok, result } or { ok:false, error }.
  */
 function doPost(e) {
-  var out;
-  try {
-    var body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
-    var fns = { getData: getData, verifyPin: verifyPin, saveStatus: saveStatus, clientLog: clientLog };
-    var fn = fns[body.action];
-    if (!fn) throw new Error('Unknown action.');
-    out = { ok: true, result: fn.apply(null, Array.isArray(body.args) ? body.args : []) };
-  } catch (err) {
-    out = { ok: false, error: String((err && err.message) || err) };
-  }
-  return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+  var r;
+  try { r = JSON.parse((e && e.postData && e.postData.contents) || '{}'); }
+  catch (err) { r = {}; }
+  return ContentService.createTextOutput(JSON.stringify(run_(r))).setMimeType(ContentService.MimeType.JSON);
 }
 
 /**
- * The fallback route, for browsers that can't read fetch replies from Apps Script.
- * GET ?api=rpc&callback=fn&action=… answers as JavaScript: fn({ok, result|error}).
- * A <script> tag can always load that, whatever the browser's cross-site rules.
- * The password never goes in the address: instructor actions carry
- * h = SHA-256 of "t:password:fields…", which this checks against the real password,
- * and t (the phone's clock, ms) must be within 15 minutes, so an old link can't be replayed later.
+ * Both routes end here. Signed-in calls carry
+ *   p = the session (from sign-in), t = the phone's clock (ms),
+ *   h = SHA-256 of "t:key:action:a", where key is the session key the phone got at sign-in.
+ * The key itself never travels again, so nothing secret is ever in an address, and an old
+ * request can't be replayed after 15 minutes.
  */
-function rpc_(p) {
-  var out;
+function run_(r) {
   try {
-    var a = p.action;
-    if (a === 'getData') out = getData();
-    else if (a === 'verifyPin') { checkSigned_(p, []); out = { ok: true, sheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl() }; }
-    else if (a === 'saveStatus') {
-      checkSigned_(p, [p.member, p.kata, p.status]);
-      out = saveStatusChecked_(p.member, p.kata, p.status, p.who);
-    } else throw new Error('Unknown action.');
-    out = { ok: true, result: out };
+    return { ok: true, result: dispatch_(r || {}) };
   } catch (err) {
-    out = { ok: false, error: String((err && err.message) || err) };
+    return { ok: false, error: String((err && err.message) || err) };
   }
-  return ContentService.createTextOutput(p.callback + '(' + JSON.stringify(out) + ');')
-    .setMimeType(ContentService.MimeType.JAVASCRIPT);
 }
 
-function checkSigned_(p, fields) {
-  var cache = CacheService.getScriptCache();
-  var fails = Number(cache.get('pinFails') || 0);
-  if (fails >= MAX_PIN_FAILS) throw new Error('Too many wrong passwords. Editing is locked for 15 minutes.');
-  var t = Number(p.t);
-  if (!t || Math.abs(Date.now() - t) > 15 * 60 * 1000) throw new Error('This phone’s clock looks wrong. Check the time and try again.');
-  var real = getSettings_().pin;
-  var want = sha256Hex_([String(p.t), real].concat(fields.map(str_)).join(':'));
-  if (!real || str_(p.h).toLowerCase() !== want) {
-    cache.put('pinFails', String(fails + 1), LOCKOUT_SECONDS);
-    throw new Error('Wrong password.');
+function dispatch_(r) {
+  var action = str_(r.action);
+  var aText = typeof r.a === 'string' ? r.a : '[]';
+  var args = JSON.parse(aText || '[]');
+  if (!Array.isArray(args)) throw new Error('Bad request.');
+
+  if (action === 'clientLog') return clientLog_(args[0]);
+  if (action === 'signIn') return signIn_(r.t, r.h);
+  if (action === 'signInPassword') return signInPassword_(r.t, r.h, args[0]);
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  ensureTabs_(ss);
+  if (action === 'getData') {
+    var s0 = null, signedOut = false;
+    if (r.p) {
+      try { s0 = session_(ss, r, action, aText); }
+      catch (err) { if (/^SIGNED_OUT/.test(err.message)) signedOut = true; else throw err; }
+    }
+    var d = getData_(ss, s0);
+    if (signedOut) d.signedOut = true;
+    return d;
   }
-  cache.remove('pinFails');
+
+  if (!r.p) throw new Error('SIGNED_OUT: Please sign in.');
+  var s = session_(ss, r, action, aText);
+  var fns = {
+    saveStatus: [saveStatus_, 'Moderator'],
+    requestChange: [requestChange_, 'Member'],
+    withdrawRequest: [withdrawRequest_, 'Member'],
+    requestLink: [requestLink_, 'Member'],
+    decide: [decide_, 'Moderator'],
+    undoDecision: [undoDecision_, 'Moderator'],
+    setLevel: [setLevel_, 'Admin'],
+    makeCode: [makeCode_, 'Admin'],
+    removeCode: [removeCode_, 'Admin'],
+    addPerson: [addPerson_, 'Admin'],
+    removeFamily: [removeFamily_, 'Admin'],
+    setPassword: [setPassword_, 'Admin']
+  };
+  var f = fns[action];
+  if (!f) throw new Error('Unknown action.');
+  need_(s, f[1]);
+  return f[0].apply(null, [ss, s].concat(args));
 }
 
-function sha256Hex_(s) {
-  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, s, Utilities.Charset.UTF_8)
-    .map(function (b) { return ('0' + (b & 255).toString(16)).slice(-2); }).join('');
+/* ---------- Signing in ---------- */
+
+function secret_() {
+  var props = PropertiesService.getScriptProperties();
+  var k = props.getProperty('TOKEN_SECRET');
+  if (!k) { k = Utilities.getUuid() + Utilities.getUuid(); props.setProperty('TOKEN_SECRET', k); }
+  return k;
+}
+function hex_(bytes) { return bytes.map(function (b) { return ('0' + (b & 255).toString(16)).slice(-2); }).join(''); }
+function sha256Hex_(s) { return hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, s, Utilities.Charset.UTF_8)); }
+function hmacHex_(s) { return hex_(Utilities.computeHmacSha256Signature(s, secret_())); }
+function normCode_(code) { return str_(code).toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+function codeHash_(code) { return sha256Hex_('ska-kata:' + normCode_(code)); }
+
+function checkClock_(t) {
+  t = Number(t);
+  if (!t || Math.abs(Date.now() - t) > CLOCK_SLACK_MS) throw new Error('This phone’s clock looks wrong. Check the time and try again.');
+}
+function failGate_() {
+  var fails = Number(CacheService.getScriptCache().get('signFails') || 0);
+  if (fails >= MAX_SIGNIN_FAILS) throw new Error('Too many wrong tries. Sign-in is paused for 15 minutes.');
+  return fails;
+}
+function failed_(fails, msg) {
+  CacheService.getScriptCache().put('signFails', String(fails + 1), LOCKOUT_SECONDS);
+  throw new Error(msg);
+}
+
+/** A new session for one person: p (sent with every call) and key (kept on the phone). */
+function newSession_(name, check) {
+  var p = Utilities.base64EncodeWebSafe(JSON.stringify({ n: name, c: check, e: Date.now() + SESSION_DAYS * 864e5 }), Utilities.Charset.UTF_8);
+  return { p: p, k: hmacHex_(p) };
+}
+
+/** Sign in with an access code. h = SHA-256 of "t:" + SHA-256("ska-kata:" + CODE). */
+function signIn_(t, h) {
+  var fails = failGate_();
+  checkClock_(t);
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  ensureTabs_(ss);
+  var rows = readAccess_(ss);
+  var hit = null;
+  rows.forEach(function (a) {
+    if (!hit && a.hash && sha256Hex_(String(t) + ':' + a.hash) === str_(h).toLowerCase()) hit = a;
+  });
+  if (!hit) failed_(fails, 'That code didn’t work. Check it and try again.');
+  CacheService.getScriptCache().remove('signFails');
+  ss.getSheetByName(TAB.ACCESS).getRange(hit.row, ACCESS_HEAD.indexOf('Last signed in') + 1).setValue(new Date());
+  var out = newSession_(hit.name, hit.hash.slice(0, 12));
+  out.name = hit.name;
+  out.level = hit.level;
+  return out;
+}
+
+/* ===== TEMPORARY PASSWORD (Moderator access while everyone gets codes) =====
+ * Gary's plan: remove this once moderators and admins have codes, so there's no
+ * shared back door. To remove: delete signInPassword_, passwordOn_, setPassword_,
+ * the 'pw:' branch in session_, the signInPassword/setPassword entries in dispatch_,
+ * and the password parts of the page (search index.html for TEMPORARY PASSWORD). */
+function passwordOn_() {
+  return !!getSettings_().pin && PropertiesService.getScriptProperties().getProperty('PASSWORD_OFF') !== '1';
+}
+function pwTag_(pin) { return 'pw:' + sha256Hex_('pw:' + pin).slice(0, 12); }
+function signInPassword_(t, h, name) {
+  if (!passwordOn_()) throw new Error('The instructor password has been turned off. Ask an admin for your access code.');
+  var fails = failGate_();
+  checkClock_(t);
+  var pin = getSettings_().pin;
+  if (str_(h).toLowerCase() !== sha256Hex_(String(t) + ':' + pin)) failed_(fails, 'Wrong password.');
+  CacheService.getScriptCache().remove('signFails');
+  name = str_(name).slice(0, 40) || 'Instructor';
+  var out = newSession_(name + ' (password)', pwTag_(pin));
+  out.name = name + ' (password)';
+  out.level = 'Moderator';
+  return out;
+}
+function setPassword_(ss, s, on) {
+  PropertiesService.getScriptProperties().setProperty('PASSWORD_OFF', on ? '0' : '1');
+  return { passwordOn: passwordOn_() };
+}
+/* ===== end TEMPORARY PASSWORD ===== */
+
+/**
+ * Checks a signed-in call and returns who it is, with their level read fresh from the
+ * Access tab (so a level change applies straight away). Making a new code, removing a
+ * code or deleting the Access row signs that person out everywhere.
+ */
+function session_(ss, r, action, aText) {
+  var bad = 'SIGNED_OUT: Please sign in again.';
+  var p = str_(r.p);
+  var data;
+  try { data = JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(p)).getDataAsString('UTF-8')); }
+  catch (e) { throw new Error(bad); }
+  if (!data || !data.n || !data.c || !(data.e > Date.now())) throw new Error(bad);
+  checkClock_(r.t);
+  var want = sha256Hex_(String(r.t) + ':' + hmacHex_(p) + ':' + action + ':' + aText);
+  if (str_(r.h).toLowerCase() !== want) throw new Error(bad);
+
+  if (String(data.c).indexOf('pw:') === 0) {
+    if (!passwordOn_() || data.c !== pwTag_(getSettings_().pin)) throw new Error('SIGNED_OUT: The instructor password has changed or been turned off.');
+    return { name: data.n, level: 'Moderator', password: true, family: [], hasRow: false };
+  }
+  var row = readAccess_(ss).filter(function (a) { return a.name === data.n; })[0];
+  if (!row || !row.hash || row.hash.slice(0, 12) !== data.c) throw new Error(bad);
+  return { name: row.name, level: row.level, password: false, family: row.family, hasRow: true };
+}
+
+function rank_(level) { return LEVELS.indexOf(level); }
+function need_(s, level) {
+  if (rank_(s.level) < rank_(level)) throw new Error('You don’t have access to do that.');
+}
+function isMod_(s) { return !!s && rank_(s.level) >= 1; }
+function isAdmin_(s) { return !!s && rank_(s.level) >= 2; }
+
+/** The members whose kata this person may see: everyone for moderators, else self + family. */
+function visibleNames_(s, members) {
+  if (!s) return [];
+  if (isMod_(s)) return members.map(function (m) { return m.name; });
+  var all = {};
+  members.forEach(function (m) { all[m.name] = true; });
+  return [s.name].concat(s.family).filter(function (n, i, arr) { return all[n] && arr.indexOf(n) === i; });
 }
 
 /** A note from a phone that couldn't read a reply (shows in Apps Script → Executions). */
-function clientLog(info) {
+function clientLog_(info) {
   console.log('Kata Tracker page problem: ' + JSON.stringify(info).slice(0, 3000));
   return true;
 }
 
-/** Everything the page needs, in one call. No password is ever returned. */
-function getData() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+/* ---------- Reading ---------- */
+
+/** Everything the page may show this person, in one call. */
+function getData_(ss, s) {
   syncProgress_(ss);
   var settings = getSettings_();
-  return {
+  var out = {
     dojoName: settings.dojoName,
     belts: settings.belts,
     statuses: settings.statuses,
     kata: readKata_(ss, settings),
-    members: readMembers_(ss),
-    progress: readProgress_(ss),
+    members: [],
+    progress: {},
+    me: null,
+    passwordOn: passwordOn_(),
     loadedAt: new Date().toISOString()
+  };
+  if (!s) return out;
+
+  var members = readMembers_(ss);
+  var names = visibleNames_(s, members);
+  var progress = readProgress_(ss);
+  out.members = members.filter(function (m) { return names.indexOf(m.name) !== -1; });
+  names.forEach(function (n) { if (progress[n]) out.progress[n] = progress[n]; });
+  out.me = { name: s.name, level: s.level, password: s.password, family: s.family, canLink: s.hasRow };
+
+  var reqs = readRequests_(ss);
+  var cutoff = Date.now() - 14 * 864e5;
+  if (isMod_(s)) {
+    out.requests = reqs.filter(function (q) { return q.type === 'Kata' && q.state === 'Waiting'; }).reverse();
+    out.recent = reqs.filter(function (q) { return q.type === 'Kata' && (q.state === 'Approved' || q.state === 'Declined'); })
+      .sort(function (a, b) { return b.decidedMs - a.decidedMs; }).slice(0, 12);
+  } else {
+    out.myRequests = reqs.filter(function (q) {
+      return q.type === 'Kata' && names.indexOf(q.member) !== -1 &&
+        (q.state === 'Waiting' || (q.state === 'Declined' && q.decidedMs > cutoff));
+    });
+  }
+  out.myLinks = reqs.filter(function (q) { return q.type === 'Family' && q.sentBy === s.name && q.state === 'Waiting'; })
+    .map(function (q) { return q.member; });
+  if (isAdmin_(s)) {
+    out.linkRequests = reqs.filter(function (q) { return q.type === 'Family' && q.state === 'Waiting'; });
+    out.access = accessList_(ss, members);
+    out.sheetUrl = ss.getUrl();
+  }
+  return out;
+}
+
+/** Everyone who is, or could be, signed in: active members plus Access rows not on the list. */
+function accessList_(ss, members) {
+  var rows = readAccess_(ss);
+  var byName = {};
+  rows.forEach(function (a) { byName[a.name] = a; });
+  var list = members.map(function (m) {
+    var a = byName[m.name];
+    delete byName[m.name];
+    return person_(m.name, m.belt, true, a);
+  });
+  Object.keys(byName).forEach(function (n) { list.unshift(person_(n, '', false, byName[n])); });
+  var idx = {};
+  list.forEach(function (p) { idx[p.name] = p; });
+  list.forEach(function (p) { p.family.forEach(function (f) { if (idx[f]) idx[f].seenBy.push(p.name); }); });
+  return list;
+}
+function person_(name, belt, onList, a) {
+  return {
+    name: name, belt: belt, onList: onList,
+    level: a ? a.level : 'Member',
+    hasCode: !!(a && a.hash),
+    made: a && a.hash ? fmtDate_(a.made) : '',
+    lastSeen: a ? fmtDate_(a.last) : '',
+    family: a ? a.family : [],
+    seenBy: []
   };
 }
 
-/** Checks the instructor password without changing anything. */
-function verifyPin(pin) {
-  checkPin_(pin);
-  // Sent only after a correct password, so the Sheet's address never appears in the public page.
-  return { ok: true, sheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl() };
+/* ---------- Members ---------- */
+
+function requestChange_(ss, s, member, kata, to, note) {
+  member = str_(member); kata = str_(kata); to = str_(to); note = str_(note).slice(0, 300);
+  var members = readMembers_(ss);
+  if (visibleNames_(s, members).indexOf(member) === -1) throw new Error('You can only ask about your own kata.');
+  var settings = getSettings_();
+  if (!readKata_(ss, settings).some(function (k) { return k.name === kata; })) throw new Error('Unknown kata.');
+  if (settings.statuses.indexOf(to) === -1) throw new Error('Pick Learning, Knows or Proficient.');
+  var from = (readProgress_(ss)[member] || {})[kata] || '';
+  if (from === to) throw new Error('It’s already ' + to + '.');
+  return withLock_(function () {
+    var sh = ss.getSheetByName(TAB.REQUESTS);
+    var open = readRequests_(ss).filter(function (q) {
+      return q.type === 'Kata' && q.state === 'Waiting' && q.member === member && q.kata === kata;
+    })[0];
+    if (open) {
+      sh.getRange(open.row, REQ_HEAD.indexOf('To') + 1, 1, 3).setValues([[to, note, s.name]]);
+      sh.getRange(open.row, REQ_HEAD.indexOf('Time') + 1).setValue(new Date());
+      return { id: open.id, member: member, kata: kata, from: from, to: to, note: note, state: 'Waiting' };
+    }
+    var id = newId_();
+    sh.appendRow([id, new Date(), 'Kata', member, kata, from, to, note, s.name, 'Waiting', '', '', '']);
+    return { id: id, member: member, kata: kata, from: from, to: to, note: note, state: 'Waiting' };
+  });
 }
 
-/** Sets one member's status for one kata. status '' clears it. */
-function saveStatus(pin, memberName, kataName, status, instructorName) {
-  checkPin_(pin);
-  return saveStatusChecked_(memberName, kataName, status, instructorName);
+function withdrawRequest_(ss, s, id) {
+  return withLock_(function () {
+    var q = findRequest_(ss, id);
+    var names = visibleNames_(s, readMembers_(ss));
+    if (q.state !== 'Waiting') throw new Error('An instructor has already looked at it.');
+    if (q.sentBy !== s.name && names.indexOf(q.member) === -1) throw new Error('You can only withdraw your own requests.');
+    setReqState_(ss, q.row, 'Withdrawn', s.name, '');
+    return { id: q.id, state: 'Withdrawn' };
+  });
 }
 
-/** The write itself, once the password has been checked. */
-function saveStatusChecked_(memberName, kataName, status, instructorName) {
+function requestLink_(ss, s, member) {
+  member = str_(member);
+  if (!s.hasRow) throw new Error('Sign in with your own access code to link family members.');
+  var hit = readMembers_(ss).filter(function (m) { return m.name.toLowerCase() === member.toLowerCase(); })[0];
+  if (!hit) throw new Error('No member is called “' + member + '”. Use their name exactly as the dojo has it.');
+  if (hit.name === s.name || s.family.indexOf(hit.name) !== -1) throw new Error('You can already see ' + hit.name + '.');
+  return withLock_(function () {
+    var dup = readRequests_(ss).some(function (q) {
+      return q.type === 'Family' && q.state === 'Waiting' && q.sentBy === s.name && q.member === hit.name;
+    });
+    if (!dup) ss.getSheetByName(TAB.REQUESTS).appendRow([newId_(), new Date(), 'Family', hit.name, '', '', '', '', s.name, 'Waiting', '', '', '']);
+    return { member: hit.name, state: 'Waiting' };
+  });
+}
+
+/* ---------- Moderators ---------- */
+
+function saveStatus_(ss, s, member, kata, status) {
+  return saveStatusChecked_(member, kata, status, s.name);
+}
+
+function decide_(ss, s, id, verdict) {
+  if (verdict !== 'Approved' && verdict !== 'Declined') throw new Error('Bad request.');
+  return withLock_(function () {
+  var q = findRequest_(ss, id);
+  if (q.type === 'Family') need_(s, 'Admin');
+  if (q.state !== 'Waiting') throw new Error('Someone has already ' + q.state.toLowerCase() + ' this.');
+  var was = '';
+  if (q.type === 'Kata' && verdict === 'Approved') {
+    was = (readProgress_(ss)[q.member] || {})[q.kata] || '';
+    saveStatusChecked_(q.member, q.kata, q.to, s.name + ' (request)');
+  }
+  if (q.type === 'Family' && verdict === 'Approved') setFamily_(ss, q.sentBy, q.member, true);
+  setReqState_(ss, q.row, verdict, s.name, was);
+  return { id: q.id, state: verdict, member: q.member, kata: q.kata, status: verdict === 'Approved' ? q.to : was };
+  });
+}
+
+function undoDecision_(ss, s, id) {
+  return withLock_(function () {
+  var q = findRequest_(ss, id);
+  if (q.type === 'Family') need_(s, 'Admin');
+  if (q.state !== 'Approved' && q.state !== 'Declined') throw new Error('Nothing to undo.');
+  if (q.type === 'Kata' && q.state === 'Approved') saveStatusChecked_(q.member, q.kata, q.was, s.name + ' (undo)');
+  if (q.type === 'Family' && q.state === 'Approved') setFamily_(ss, q.sentBy, q.member, false);
+  var sh = ss.getSheetByName(TAB.REQUESTS);
+  sh.getRange(q.row, REQ_HEAD.indexOf('State') + 1, 1, 4).setValues([['Waiting', '', '', '']]);
+  return { id: q.id, state: 'Waiting', member: q.member, kata: q.kata, status: q.state === 'Approved' ? q.was : null };
+  });
+}
+
+/* ---------- Admins ---------- */
+
+function setLevel_(ss, s, name, level) {
+  name = str_(name);
+  if (LEVELS.indexOf(level) === -1) throw new Error('Pick Member, Moderator or Admin.');
+  return withLock_(function () {
+    var rows = readAccess_(ss);
+    var a = rows.filter(function (x) { return x.name === name; })[0];
+    if (a && a.level === 'Admin' && level !== 'Admin' &&
+        rows.filter(function (x) { return x.level === 'Admin' && x.hash; }).length <= 1) {
+      throw new Error('Keep at least one admin with a code. Make someone else an admin first.');
+    }
+    var row = a ? a.row : addAccessRow_(ss, name, readMembers_(ss));
+    ss.getSheetByName(TAB.ACCESS).getRange(row, ACCESS_HEAD.indexOf('Level') + 1).setValue(level);
+    return { name: name, level: level };
+  });
+}
+
+/** Makes a new access code. It's returned once and only its hash is kept. */
+function makeCode_(ss, s, name) {
+  name = str_(name);
+  return withLock_(function () {
+    var rows = readAccess_(ss);
+    var used = {};
+    rows.forEach(function (x) { if (x.hash) used[x.hash] = true; });
+    var code, hash;
+    do { code = newCode_(); hash = codeHash_(code); } while (used[hash]);
+    var a = rows.filter(function (x) { return x.name === name; })[0];
+    var row = a ? a.row : addAccessRow_(ss, name, readMembers_(ss));
+    var sh = ss.getSheetByName(TAB.ACCESS);
+    sh.getRange(row, ACCESS_HEAD.indexOf('Code hash') + 1, 1, 2).setValues([[hash, new Date()]]);
+    return { name: name, code: code.slice(0, 3) + '-' + code.slice(3) };
+  });
+}
+
+function removeCode_(ss, s, name) {
+  name = str_(name);
+  return withLock_(function () {
+    var rows = readAccess_(ss);
+    var a = rows.filter(function (x) { return x.name === name; })[0];
+    if (!a || !a.hash) return { name: name };
+    if (a.level === 'Admin' && rows.filter(function (x) { return x.level === 'Admin' && x.hash; }).length <= 1) {
+      throw new Error('This is the only admin code. Make someone else an admin first.');
+    }
+    ss.getSheetByName(TAB.ACCESS).getRange(a.row, ACCESS_HEAD.indexOf('Code hash') + 1, 1, 2).setValues([['', '']]);
+    return { name: name };
+  });
+}
+
+/** Someone who isn't on the member list, e.g. an instructor or a parent. */
+function addPerson_(ss, s, name, level) {
+  name = str_(name).replace(/,/g, ' ').slice(0, 60);
+  if (!name) throw new Error('Type their name.');
+  if (LEVELS.indexOf(level) === -1) level = 'Member';
+  return withLock_(function () {
+    if (readAccess_(ss).some(function (x) { return x.name.toLowerCase() === name.toLowerCase(); }) ||
+        readMembers_(ss).some(function (m) { return m.name.toLowerCase() === name.toLowerCase(); })) {
+      throw new Error(name + ' is already on the list.');
+    }
+    var sh = ss.getSheetByName(TAB.ACCESS);
+    sh.appendRow([name, level, '', '', '', '', 'Not on the member list']);
+    return { name: name, level: level };
+  });
+}
+
+function removeFamily_(ss, s, account, member) {
+  return withLock_(function () { setFamily_(ss, str_(account), str_(member), false); return { ok: true }; });
+}
+
+/* ---------- Writes ---------- */
+
+/** The progress write itself, once access has been checked. status '' clears it. */
+function saveStatusChecked_(memberName, kataName, status, who) {
   var settings = getSettings_();
   memberName = str_(memberName);
   kataName = str_(kataName);
   status = str_(status);
-  if (status && settings.statuses.indexOf(status) === -1) {
-    throw new Error('Unknown status: ' + status);
-  }
-
-  var lock = LockService.getScriptLock();
-  lock.waitLock(20000);
-  try {
+  if (status && settings.statuses.indexOf(status) === -1) throw new Error('Unknown status: ' + status);
+  return withLock_(function () {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = ss.getSheetByName(TAB.PROGRESS);
     var pos = findCell_(sheet, memberName, kataName);
-    if (!pos) {
-      syncProgress_(ss, true);
-      pos = findCell_(sheet, memberName, kataName);
-    }
+    if (!pos) { syncProgress_(ss, true); pos = findCell_(sheet, memberName, kataName); }
     if (!pos) throw new Error('Could not find ' + memberName + ' / ' + kataName + ' on the Progress tab.');
-
     sheet.getRange(pos.row, pos.col).setValue(status);
-    ss.getSheetByName(TAB.LOG).appendRow([
-      new Date(), memberName, kataName, status || '(cleared)', str_(instructorName) || 'Instructor'
-    ]);
+    ss.getSheetByName(TAB.LOG).appendRow([new Date(), memberName, kataName, status || '(cleared)', str_(who) || 'Instructor']);
     SpreadsheetApp.flush();
-  } finally {
-    lock.releaseLock();
+    return { ok: true, member: memberName, kata: kataName, status: status };
+  });
+}
+
+var lockHeld_ = false;
+function withLock_(fn) {
+  if (lockHeld_) return fn();
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  lockHeld_ = true;
+  try { return fn(); }
+  finally { lockHeld_ = false; lock.releaseLock(); }
+}
+
+function addAccessRow_(ss, name, members) {
+  var m = members.filter(function (x) { return x.name === name; })[0];
+  if (!m) throw new Error('No one called ' + name + ' on the member list.');
+  var sh = ss.getSheetByName(TAB.ACCESS);
+  sh.appendRow([name, 'Member', '', '', '', '', '']);
+  return sh.getLastRow();
+}
+
+function setFamily_(ss, account, member, add) {
+  var a = readAccess_(ss).filter(function (x) { return x.name === account; })[0];
+  if (!a) throw new Error(account + ' isn’t on the Access tab.');
+  var fam = a.family.filter(function (n) { return n !== member; });
+  if (add) fam.push(member);
+  ss.getSheetByName(TAB.ACCESS).getRange(a.row, ACCESS_HEAD.indexOf('Family') + 1).setValue(fam.join(', '));
+}
+
+function setReqState_(ss, row, state, who, was) {
+  ss.getSheetByName(TAB.REQUESTS).getRange(row, REQ_HEAD.indexOf('State') + 1, 1, 4)
+    .setValues([[state, who, new Date(), was]]);
+}
+
+function findRequest_(ss, id) {
+  var q = readRequests_(ss).filter(function (x) { return x.id === str_(id); })[0];
+  if (!q) throw new Error('That request is gone. Refresh and try again.');
+  return q;
+}
+
+function newId_() { return 'R' + Date.now().toString(36).toUpperCase() + Math.floor(Math.random() * 1296).toString(36).toUpperCase(); }
+
+function newCode_() {
+  var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, Utilities.getUuid() + Date.now() + Math.random());
+  var out = '';
+  for (var i = 0; out.length < 6; i++) {
+    var b = bytes[i] & 255;
+    if (b < 248) out += CODE_ALPHABET.charAt(b % 31);   // 248 = 8 × 31, so every letter is equally likely
   }
-  return { ok: true, member: memberName, kata: kataName, status: status };
+  return out;
 }
 
 /* ---------- Sheet menu ---------- */
@@ -198,18 +583,113 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Kata Tracker')
     .addItem('Sync progress', 'menuSync_')
+    .addItem('Make an access code…', 'menuMakeCode_')
+    .addItem('Sign everyone out', 'menuSignOutAll_')
     .addToUi();
 }
 
 function menuSync_() {
-  var added = syncProgress_(SpreadsheetApp.getActiveSpreadsheet(), true);
-  SpreadsheetApp.getActiveSpreadsheet().toast(
-    'Added ' + added.members + ' member row(s) and ' + added.kata + ' kata column(s).',
-    'Kata Tracker'
-  );
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  ensureTabs_(ss);
+  var added = syncProgress_(ss, true);
+  ss.toast('Added ' + added.members + ' member row(s) and ' + added.kata + ' kata column(s).', 'Kata Tracker');
+}
+
+/** For setting up the first admin, or anyone, straight from the sheet. */
+function menuMakeCode_() {
+  var ui = SpreadsheetApp.getUi();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  ensureTabs_(ss);
+  var r1 = ui.prompt('Make an access code', 'Their name, exactly as on the Members tab (or an instructor’s name, e.g. Mr. Luo):', ui.ButtonSet.OK_CANCEL);
+  if (r1.getSelectedButton() !== ui.Button.OK) return;
+  var name = str_(r1.getResponseText()).replace(/,/g, ' ');
+  if (!name) return;
+  var r2 = ui.prompt('Access level for ' + name, 'Member, Moderator or Admin:', ui.ButtonSet.OK_CANCEL);
+  if (r2.getSelectedButton() !== ui.Button.OK) return;
+  var level = LEVELS.filter(function (l) { return l.toLowerCase() === str_(r2.getResponseText()).toLowerCase(); })[0];
+  if (!level) { ui.alert('Type Member, Moderator or Admin.'); return; }
+  var onList = readMembers_(ss).some(function (m) { return m.name === name; });
+  if (!onList && !readAccess_(ss).some(function (a) { return a.name === name; })) {
+    ss.getSheetByName(TAB.ACCESS).appendRow([name, level, '', '', '', '', 'Not on the member list']);
+  }
+  var admin = { name: 'Sheet menu', level: 'Admin', family: [], hasRow: false };
+  setLevel_(ss, admin, name, level);
+  var res = makeCode_(ss, admin, name);
+  ui.alert('Access code for ' + name,
+    res.code + '\n\nLevel: ' + level + '\nGive this to them now. It isn’t stored and won’t be shown again. ' +
+    'They sign in at ' + SITE_URL, ui.ButtonSet.OK);
+}
+
+function menuSignOutAll_() {
+  var ui = SpreadsheetApp.getUi();
+  if (ui.alert('Sign everyone out?', 'Everyone will need to enter their access code again. Codes stay the same.', ui.ButtonSet.OK_CANCEL) !== ui.Button.OK) return;
+  PropertiesService.getScriptProperties().setProperty('TOKEN_SECRET', Utilities.getUuid() + Utilities.getUuid());
+  SpreadsheetApp.getActiveSpreadsheet().toast('Everyone has been signed out.', 'Kata Tracker');
 }
 
 /* ---------- Reading the tabs ---------- */
+
+function ensureTabs_(ss) {
+  [[TAB.ACCESS, ACCESS_HEAD], [TAB.REQUESTS, REQ_HEAD]].forEach(function (t) {
+    if (ss.getSheetByName(t[0])) return;
+    var sh = ss.insertSheet(t[0]);
+    sh.getRange(1, 1, 1, t[1].length).setValues([t[1]]).setFontWeight('bold');
+    sh.setFrozenRows(1);
+  });
+}
+
+function readAccess_(ss) {
+  var sh = ss.getSheetByName(TAB.ACCESS);
+  var v = sh.getDataRange().getValues();
+  if (v.length < 2) return [];
+  var h = v[0].map(str_);
+  var col = function (name) { return h.indexOf(name); };
+  var out = [];
+  for (var r = 1; r < v.length; r++) {
+    var name = str_(v[r][col('Name')]);
+    if (!name) continue;
+    var level = str_(v[r][col('Level')]);
+    level = LEVELS.filter(function (l) { return l.toLowerCase() === level.toLowerCase(); })[0] || 'Member';
+    out.push({
+      row: r + 1, name: name, level: level,
+      hash: str_(v[r][col('Code hash')]).toLowerCase(),
+      made: v[r][col('Code made')],
+      family: str_(v[r][col('Family')]).split(',').map(str_).filter(String),
+      last: v[r][col('Last signed in')]
+    });
+  }
+  return out;
+}
+
+function readRequests_(ss) {
+  var sh = ss.getSheetByName(TAB.REQUESTS);
+  var v = sh.getDataRange().getValues();
+  if (v.length < 2) return [];
+  var h = v[0].map(str_);
+  var g = function (row, name) { return row[h.indexOf(name)]; };
+  var out = [];
+  for (var r = 1; r < v.length; r++) {
+    var id = str_(g(v[r], 'ID'));
+    if (!id) continue;
+    var dec = g(v[r], 'Decided at');
+    var time = g(v[r], 'Time');
+    out.push({
+      row: r + 1, id: id, type: str_(g(v[r], 'Type')) || 'Kata',
+      time: fmtDate_(time), timeMs: time instanceof Date ? time.getTime() : 0,
+      member: str_(g(v[r], 'Member')), kata: str_(g(v[r], 'Kata')),
+      from: str_(g(v[r], 'From')), to: str_(g(v[r], 'To')), note: str_(g(v[r], 'Note')),
+      sentBy: str_(g(v[r], 'Sent by')), state: str_(g(v[r], 'State')) || 'Waiting',
+      decidedBy: str_(g(v[r], 'Decided by')), decided: fmtDate_(dec),
+      decidedMs: dec instanceof Date ? dec.getTime() : 0, was: str_(g(v[r], 'Was'))
+    });
+  }
+  return out;
+}
+
+function fmtDate_(d) {
+  if (!(d instanceof Date) || isNaN(d.getTime())) return str_(d);
+  return Utilities.formatDate(d, TZ, "yyyy-MM-dd'T'HH:mm:ss");
+}
 
 function readKata_(ss, settings) {
   return readTable_(ss.getSheetByName(TAB.KATA))
@@ -230,12 +710,8 @@ function readKata_(ss, settings) {
 
 function readMembers_(ss) {
   return readTable_(ss.getSheetByName(TAB.MEMBERS))
-    .filter(function (r) {
-      return str_(r['Name']) && str_(r['Active']).toLowerCase() !== 'no';
-    })
-    .map(function (r) {
-      return { name: str_(r['Name']), belt: str_(r['Belt']) };
-    })
+    .filter(function (r) { return str_(r['Name']) && str_(r['Active']).toLowerCase() !== 'no'; })
+    .map(function (r) { return { name: str_(r['Name']), belt: str_(r['Belt']) }; })
     .sort(function (a, b) { return a.name.localeCompare(b.name); });
 }
 
@@ -331,7 +807,7 @@ function syncProgress_(ss, alreadyLockedOrForce) {
   if (!kataNames.length && !memberNames.length) return { kata: 0, members: 0 };
 
   var lock = null;
-  if (!alreadyLockedOrForce) {
+  if (!alreadyLockedOrForce && !lockHeld_) {
     lock = LockService.getScriptLock();
     if (!lock.tryLock(5000)) return { kata: 0, members: 0 };
   }
@@ -398,20 +874,6 @@ function getSettings_() {
     if (i >= 1 && i <= 9 && str_(v[i][3])) out.statuses.push(str_(v[i][3]));
   }
   return out;
-}
-
-function checkPin_(pin) {
-  var cache = CacheService.getScriptCache();
-  var fails = Number(cache.get('pinFails') || 0);
-  if (fails >= MAX_PIN_FAILS) {
-    throw new Error('Too many wrong passwords. Editing is locked for 15 minutes.');
-  }
-  var real = getSettings_().pin;
-  if (!real || str_(pin) !== real) {
-    cache.put('pinFails', String(fails + 1), LOCKOUT_SECONDS);
-    throw new Error('Wrong password.');
-  }
-  cache.remove('pinFails');
 }
 
 /** Reads a tab with a header row into an array of objects keyed by header. */

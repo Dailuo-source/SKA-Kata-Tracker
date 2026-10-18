@@ -167,6 +167,42 @@ button.st svg{width:14px;height:14px}
 .toast .ok{width:20px;height:20px;color:#7FD98F}
 .toast .undo{min-height:44px;padding:0 16px;border-radius:14px;border:0;background:#fff;color:var(--red);font-size:15px;font-weight:800}
 .toast.bad{background:var(--red)}
+
+/* Accounts, requests and access */
+.acct{height:40px;padding:0 12px 0 4px;border-radius:20px;border:1.5px solid #fff;background:transparent;color:#fff;display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:800;white-space:nowrap}
+.acct .ini{width:32px;height:32px;border-radius:16px;background:#fff;color:var(--red);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+.h2{font-family:var(--f-d);font-size:20px;font-weight:800;line-height:1.25;margin:0}
+.cathead{display:flex;align-items:center;gap:8px;margin:8px 4px -2px}
+.cathead .h2{flex:1}
+.warn{background:#FFF1CC;color:#5C4100;border-radius:14px;padding:10px 12px;font-size:13.5px;font-weight:700;line-height:1.45}
+.warncard{background:#FFF1CC;color:#5C4100;border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.warncard .h2{font-size:16px}
+.warncard .btn{flex:none;align-self:flex-start;padding:0 16px;background:transparent;border-color:#5C4100;color:#5C4100;min-height:44px}
+.req{padding:16px;display:flex;flex-direction:column;gap:10px}
+.req .who{font-size:14px;font-weight:800}
+.req .when{font-size:12.5px;font-weight:700;color:var(--muted);white-space:nowrap}
+.quote{padding:10px 12px;border-radius:14px;background:#F4F4F2;font-size:14px;font-weight:600;color:var(--ink2)}
+.tag.ok{background:#E3F3E6;border-color:#E3F3E6;color:#1D6B30}
+.codebox{background:var(--ink);color:#fff;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.codebox b{font-family:var(--f-d);font-size:30px;font-weight:800;letter-spacing:4px;line-height:1.2}
+.codebox span{font-size:13px;font-weight:700;color:#E2E2E2}
+.codebox .btn{flex:none;align-self:flex-start;background:#fff;color:var(--ink);border-color:#fff;min-height:40px;padding:0 14px}
+.inp.code{font-family:var(--f-d);font-size:22px;font-weight:800;letter-spacing:3px;text-transform:uppercase;height:54px}
+.inp.code::placeholder{text-transform:none;letter-spacing:0;font-weight:600;font-size:17px;font-family:var(--f-b)}
+textarea.inp{height:auto;padding:10px 14px;resize:none;font-size:15px;line-height:1.4}
+.tabs button{position:relative}
+.tabs-in.five button{font-size:11.5px}
+.tabs .badge{position:absolute;top:3px;left:calc(50% + 6px);min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--red);color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.tabs button[aria-current=page] .badge{background:#fff;color:var(--red)}
+.chip.dash{border-style:dashed;color:var(--ink2);display:inline-flex;align-items:center;gap:4px}
+.chip.dash svg{width:16px;height:16px}
+.chip.wait{border:1.5px dashed var(--red);color:#8E0B21;background:#fff;display:inline-flex;align-items:center;cursor:default}
+.sec{border-top:1px solid #ECECEC;padding-top:14px;margin-top:14px;display:flex;flex-direction:column;gap:10px}
+.sec h3{margin:0;font-size:13px;font-weight:800;color:var(--muted)}
+.seg.lv button[aria-pressed=true]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.opt[aria-pressed=true]{border:3px solid var(--red);background:var(--red-tint)}
+.frow{display:flex;align-items:center;gap:10px;min-height:44px;font-size:14px;font-weight:700}
+.frow .btn{flex:none;min-height:40px;padding:0 14px;font-size:13.5px}
 </style>
 </head>
 <body>
@@ -174,7 +210,7 @@ button.st svg{width:14px;height:14px}
   <div class="top-in">
     <img class="logo" alt="Scarborough Academy of Karate" src="logo-96.png">
     <div class="brand"><b>SKA Kata Tracker</b><small id="dojoName">Loading…</small></div>
-    <button class="hbtn" id="lockBtn" type="button"></button>
+    <button class="hbtn" id="acctBtn" type="button"></button>
   </div>
 </header>
 
@@ -198,26 +234,42 @@ var PLANNER_URL = 'https://ska-lesson-planner.pages.dev/';
 var PARAMS = new URLSearchParams(location.search);
 if (/^https:\/\/script\.google\.com\//.test(PARAMS.get('api') || '')) API_URL = PARAMS.get('api');
 var CATEGORIES = ['All', 'Solo', 'Multi-person', 'Weapon'];
+var LEVELS = ['Member', 'Moderator', 'Admin'];
+var LEVEL_HINT = {
+  Member: 'Sees only their own kata (and approved family members’). Can ask for changes.',
+  Moderator: 'Approves requests, sees who knows every kata, changes anyone’s kata, and sees Ready to grade.',
+  Admin: 'Everything a moderator can do, plus access levels, codes and family links.'
+};
 
+/*
+ * Who sees what (Gary's rules; the script enforces them, the page just follows):
+ *   Signed out – the kata list.   Member – their own kata, asks for changes.
+ *   Moderator  – everyone, makes changes, approves requests, Ready to grade.
+ *   Admin      – everything, plus the Access tab.
+ */
 var state = {
   data: null,
-  tab: 'members',          // members | kata | ready
-  member: null,            // open member's name
+  tab: 'kata',             // mine | members | kata | requests | ready | access
+  member: null,            // open member's name (Members tab)
   kata: null,              // open kata's name
+  who: null,               // the person shown on My kata (self or a linked family member)
   query: '',
   category: 'All',
   showHigher: false,
   collapsed: {},           // belt name -> true when its group is folded
-  kataView: 'need',        // instructor list on a kata: need | all
+  kataView: 'need',        // moderator list on a kata: need | all
   showNotStarted: false,
   readyBelt: 'All',
+  accessFilter: 'All',
   fromPlanner: false,
-  pin: null,
-  instructor: '',
-  sheetUrl: null
+  pwMode: false,           // sign-in form showing the temporary password
+  newCode: null,           // { name, code } just made, shown once
+  confirm: null            // a two-tap confirmation inside the person panel
 };
+var session = null;        // { p, k, name, level } from signing in
 var pending = null;        // a status change waiting for "Yes, save"
-var lastSave = null;       // the change the Undo button reverses
+var undoFn = null;         // what the toast's Undo button does
+var lastLoad = 0;
 
 var $ = function (id) { return document.getElementById(id); };
 var app = $('app');
@@ -226,10 +278,12 @@ var app = $('app');
 function svg(p, w) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + (w || 2) + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + p + '</svg>'; }
 var ICON = {
   lock: svg('<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>', 2.4),
-  open: svg('<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.5-2"/>', 2.4),
+  person: svg('<circle cx="12" cy="8" r="4"/><path d="M4 21c1.2-4 4.4-6 8-6s6.8 2 8 6"/>'),
   people: svg('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c1-3.5 3.6-5.5 6.5-5.5s5.5 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18.5 14.5c1.6.8 2.6 2.6 3 5.5"/>'),
   book: svg('<path d="M5 4h10a4 4 0 0 1 4 4v12H9a4 4 0 0 1-4-4z"/><path d="M5 16a4 4 0 0 1 4-4h10"/>'),
+  inbox: svg('<path d="M4 5h16v11H9l-5 4z"/><path d="M9 10l2 2 4-4"/>'),
   trophy: svg('<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4"/>'),
+  key: svg('<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/>'),
   back: svg('<path d="M15 5l-7 7 7 7"/>', 2.4),
   go: svg('<path d="M9 5l7 7-7 7"/>', 2.4),
   up: svg('<path d="M6 15l6-6 6 6"/>', 2.4),
@@ -237,7 +291,8 @@ var ICON = {
   search: svg('<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>'),
   check: svg('<path d="M5 12.5l4.5 4.5L19 7.5"/>', 2.6),
   info: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/>', 2.2),
-  sheet: svg('<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M4 15h16M10 3v18"/>'),
+  clock: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', 2.2),
+  plus: svg('<path d="M12 5v14M5 12h14"/>', 2.4),
   arrow: svg('<path d="M5 12h14M13 6l6 6-6 6"/>', 2.6)
 };
 
@@ -246,48 +301,64 @@ var ICON = {
  * Two routes to the sheet's script:
  * 1. fetch POST (sent as text/plain so the browser doesn't need a CORS preflight).
  * 2. If a browser can't read fetch replies from Google (some phones can't), a <script> tag
- *    loading ?api=rpc&callback=… instead. The password never goes in that address: instructor
- *    actions send a SHA-256 of "time:password:fields" that the script checks.
+ *    loading ?api=rpc&callback=… instead.
+ * Nothing secret ever travels in an address: an access code or password is only sent as
+ * SHA-256(time:…), and signed-in calls carry SHA-256(time:session key:action:arguments).
  * After one fetch failure the page sticks to route 2, and tells the script what went wrong
  * (Apps Script → Executions) so it can be fixed properly.
  */
 var useScriptRoute = false, reported = false;
-function call(fn) {
-  var args = Array.prototype.slice.call(arguments, 1);
-  if (useScriptRoute) return viaScript(fn, args);
-  var t0 = Date.now();
-  return viaFetch(fn, args).catch(function (e) {
-    if (!e || !e.network) throw e;
-    useScriptRoute = true;
-    report({ stage: 'fetch', fn: fn, err: e.detail, ms: Date.now() - t0 });
-    return viaScript(fn, args).catch(function (e2) {
-      report({ stage: 'script', fn: fn, err: String((e2 && e2.message) || e2) });
-      if (e2 && e2.fromSheet) throw e2;
-      throw new Error('Can’t reach the sheet. Check your connection.');
-    });
-  });
-}
-function viaFetch(fn, args) {
-  return fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: fn, args: args }), redirect: 'follow' })
-    .then(function (r) { if (!r.ok) { var x = new Error('HTTP ' + r.status); x.network = true; x.detail = 'HTTP ' + r.status + ' ' + r.url.slice(0, 60); throw x; } return r.json(); },
-      function (e) { var x = new Error('network'); x.network = true; x.detail = String((e && e.message) || e); throw x; })
-    .then(function (j) { if (!j || !j.ok) throw new Error((j && j.error) || 'Something went wrong.'); return j.result; });
-}
 function sha256Hex(s) {
   return crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)).then(function (buf) {
     return Array.prototype.map.call(new Uint8Array(buf), function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
   });
 }
-function viaScript(fn, args) {
-  var t = String(Date.now());
-  var p = { api: 'rpc', action: fn };
-  var signed = Promise.resolve();
-  if (fn === 'verifyPin') signed = sha256Hex([t, args[0]].join(':')).then(function (h) { p.t = t; p.h = h; });
-  if (fn === 'saveStatus') {
-    p.member = args[1]; p.kata = args[2]; p.status = args[3] || ''; p.who = args[4] || '';
-    signed = sha256Hex([t, args[0], p.member, p.kata, p.status].join(':')).then(function (h) { p.t = t; p.h = h; });
+function normCode(c) { return String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+function request(fn, args) {
+  var t = String(Date.now()), a = JSON.stringify(args || []);
+  if (fn === 'signIn') {
+    return sha256Hex('ska-kata:' + normCode(args[0]))
+      .then(function (ch) { return sha256Hex(t + ':' + ch); })
+      .then(function (h) { return { action: fn, a: '[]', t: t, h: h }; });
   }
-  return signed.then(function () { return scriptGet(p); }).then(function (j) {
+  /* TEMPORARY PASSWORD */
+  if (fn === 'signInPassword') {
+    return sha256Hex(t + ':' + args[1]).then(function (h) { return { action: fn, a: JSON.stringify([args[0]]), t: t, h: h }; });
+  }
+  if (!session || fn === 'clientLog') return Promise.resolve({ action: fn, a: a, t: t });
+  return sha256Hex(t + ':' + session.k + ':' + fn + ':' + a).then(function (h) { return { action: fn, a: a, t: t, p: session.p, h: h }; });
+}
+function call(fn) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  var once = function (route) { return request(fn, args).then(route); };
+  var p;
+  if (useScriptRoute) p = once(viaScript);
+  else {
+    var t0 = Date.now();
+    p = once(viaFetch).catch(function (e) {
+      if (!e || !e.network) throw e;
+      useScriptRoute = true;
+      report({ stage: 'fetch', fn: fn, err: e.detail, ms: Date.now() - t0 });
+      return once(viaScript).catch(function (e2) {
+        report({ stage: 'script', fn: fn, err: String((e2 && e2.message) || e2) });
+        if (e2 && e2.fromSheet) throw e2;
+        throw new Error('Can’t reach the sheet. Check your connection.');
+      });
+    });
+  }
+  return p.catch(function (e) {
+    if (e && /^SIGNED_OUT/.test(e.message || '') && session) signOut(true, errMsg(e));
+    throw e;
+  });
+}
+function viaFetch(params) {
+  return fetch(API_URL, { method: 'POST', body: JSON.stringify(params), redirect: 'follow' })
+    .then(function (r) { if (!r.ok) { var x = new Error('HTTP ' + r.status); x.network = true; x.detail = 'HTTP ' + r.status + ' ' + r.url.slice(0, 60); throw x; } return r.json(); },
+      function (e) { var x = new Error('network'); x.network = true; x.detail = String((e && e.message) || e); throw x; })
+    .then(function (j) { if (!j || !j.ok) throw new Error((j && j.error) || 'Something went wrong.'); return j.result; });
+}
+function viaScript(params) {
+  return scriptGet(Object.assign({ api: 'rpc' }, params)).then(function (j) {
     if (!j || !j.ok) { var x = new Error((j && j.error) || 'Something went wrong.'); x.fromSheet = true; throw x; }
     return j.result;
   });
@@ -309,14 +380,14 @@ function report(info) {
   if (reported && info.stage === 'fetch') return;
   if (info.stage === 'fetch') reported = true;
   try {
-    var body = JSON.stringify({ action: 'clientLog', args: [Object.assign({
+    var body = JSON.stringify({ action: 'clientLog', a: JSON.stringify([Object.assign({
       ua: navigator.userAgent, online: navigator.onLine, app: (window.matchMedia && matchMedia('(display-mode: standalone)').matches) ? 'installed' : 'browser',
       from: (document.referrer || '').slice(0, 60), at: new Date().toISOString()
-    }, info)] });
+    }, info)]) });
     if (navigator.sendBeacon) navigator.sendBeacon(API_URL, body);
   } catch (e) {}
 }
-function errMsg(e) { return (e && e.message) ? e.message.replace(/^(Exception|Error):\s*/, '') : String(e); }
+function errMsg(e) { return (e && e.message) ? e.message.replace(/^(Exception|Error):\s*/, '').replace(/^SIGNED_OUT:\s*/, '') : String(e); }
 
 /* ---------- small helpers ---------- */
 function esc(s) {
@@ -326,8 +397,46 @@ function esc(s) {
 }
 function store(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} }
 function recall(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function sstore(k, v) { try { if (v == null) sessionStorage.removeItem(k); else sessionStorage.setItem(k, v); } catch (e) {} }
+function srecall(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
 function first(name) { return String(name).split(' ')[0]; }
+function shortName(name) { var w = String(name).split(' '); return w.length > 1 ? w[0] + ' ' + w[w.length - 1][0] + '.' : name; }
+function initials(name) {
+  var w = String(name || '').replace(/\(.*?\)/g, '').split(/\s+/).filter(function (x) { return x && !/\.$/.test(x); });
+  if (!w.length) return '?';
+  return (w[0][0] + (w.length > 1 ? w[w.length - 1][0] : '')).toUpperCase();
+}
+function parseTime(s) { var d = new Date(s); return isNaN(d.getTime()) ? null : d; }
+function shortDate(s) { var d = parseTime(s); return d ? d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' }) : ''; }
+function ago(s) {
+  var d = parseTime(s); if (!d) return '';
+  var min = Math.round((Date.now() - d.getTime()) / 60000);
+  if (min < 2) return 'Just now';
+  if (min < 60) return min + ' min ago';
+  if (min < 24 * 60) return Math.round(min / 60) + ' h ago';
+  if (min < 48 * 60) return 'Yesterday';
+  return shortDate(s);
+}
+function nowLocal() {
+  var d = new Date(), p = function (n) { return ('0' + n).slice(-2); };
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+}
 
+/* ---------- who is signed in ---------- */
+function me() { return state.data && state.data.me; }
+function level() { var m = me(); return m ? m.level : (session ? session.level : ''); }
+function isMod() { var l = level(); return l === 'Moderator' || l === 'Admin'; }
+function isAdmin() { return level() === 'Admin'; }
+function homeTab() { return !session ? 'kata' : isMod() ? 'members' : 'mine'; }
+function tabList() {
+  if (!session) return [];
+  if (!isMod()) return [['mine', 'My kata', ICON.person], ['kata', 'Kata', ICON.book]];
+  var T = [['members', 'Members', ICON.people], ['kata', 'Kata', ICON.book], ['requests', 'Requests', ICON.inbox], ['ready', isAdmin() ? 'Ready' : 'Ready to grade', ICON.trophy]];
+  if (isAdmin()) T.push(['access', 'Access', ICON.key]);
+  return T;
+}
+
+/* ---------- belts, statuses, kata ---------- */
 function belts() { return state.data.belts; }
 function beltIndex(name) {
   var b = belts(), n = String(name || '').trim().toLowerCase();
@@ -362,6 +471,14 @@ function kataByName(n) { return state.data.kata.filter(function (k) { return k.n
 function memberByName(n) { return state.data.members.filter(function (m) { return m.name === n; })[0]; }
 function inCategory(k) { return state.category === 'All' || k.category === state.category; }
 function matches(q, text) { return !q || String(text).toLowerCase().indexOf(q.toLowerCase()) !== -1; }
+/** Solo, then Multi-person, then Weapon, then anything else the sheet has. */
+function categoryOrder(list) {
+  var seen = {};
+  list.forEach(function (k) { seen[k.category] = true; });
+  var out = CATEGORIES.slice(1).filter(function (c) { return seen[c]; });
+  Object.keys(seen).sort().forEach(function (c) { if (out.indexOf(c) === -1) out.push(c); });
+  return out;
+}
 
 /** Kata a member is expected to know by now (at or below their belt). */
 function expectedKata(m) {
@@ -371,7 +488,7 @@ function expectedKata(m) {
 function knownCount(m, list) { return list.filter(function (k) { return isKnown(statusOf(m.name, k.name)); }).length; }
 
 /**
- * Belt readiness (instructors only): every kata the handbook lists for the member's belt
+ * Belt readiness (moderators only): every kata the handbook lists for the member's belt
  * and below must be at Knows or better. null when the handbook lists nothing to check.
  */
 function readiness(m) {
@@ -392,62 +509,91 @@ function stillNeed(k) {
 }
 function byBeltDesc(a, b) { return (beltIndex(b.belt) - beltIndex(a.belt)) || a.name.localeCompare(b.name); }
 
+/* Members' own requests */
+function myRequests() { return (state.data && state.data.myRequests) || []; }
+function waitingReq(member, kata) { return myRequests().filter(function (q) { return q.member === member && q.kata === kata && q.state === 'Waiting'; })[0]; }
+function declinedReq(member, kata) { return myRequests().filter(function (q) { return q.member === member && q.kata === kata && q.state === 'Declined'; })[0]; }
+/** Whose kata a member is looking at: the chosen family member, else themselves. */
+function viewedPerson() {
+  if (!state.data || isMod()) return null;
+  var list = state.data.members;
+  if (state.who && memberByName(state.who)) return memberByName(state.who);
+  return memberByName(me() ? me().name : '') || list[0] || null;
+}
+
 /* ---------- navigation: every screen and panel is a history step, so the phone's back
    button closes panels first, then goes back a screen ---------- */
 function snapshot() { return { tab: state.tab, member: state.member || '', kata: state.kata || '' }; }
 function go(tab, member, kata) {
   state.tab = tab; state.member = member || null; state.kata = kata || null; state.query = '';
   state.showNotStarted = false; state.needList = null;
-  if (kata) state.kataView = state.pin && stillNeed(kataByName(kata) || { learnedAt: '', belt: '' }).length ? 'need' : 'all';
+  if (kata) state.kataView = isMod() && stillNeed(kataByName(kata) || { learnedAt: '', belt: '' }).length ? 'need' : 'all';
   try { history.pushState(snapshot(), ''); } catch (e) {}
   render(); scrollTop();
 }
 window.addEventListener('popstate', function (e) {
-  var s = e.state || { tab: 'members' };
+  var s = e.state || { tab: homeTab() };
   if (!$('scrim').hidden) hideSheet();
   if (s.sheet) { try { history.replaceState(Object.assign({}, s, { sheet: 0 }), ''); } catch (x) {} }
-  var changed = (s.tab || 'members') !== state.tab || (s.member || null) !== state.member || (s.kata || null) !== state.kata;
+  var changed = (s.tab || homeTab()) !== state.tab || (s.member || null) !== state.member || (s.kata || null) !== state.kata;
   if (!changed) return;
-  state.tab = s.tab || 'members'; state.member = s.member || null; state.kata = s.kata || null; state.needList = null;
+  state.tab = s.tab || homeTab(); state.member = s.member || null; state.kata = s.kata || null; state.needList = null;
   render(); scrollTop();
 });
 function scrollTop() { try { window.scrollTo(0, 0); } catch (e) {} }
 
 /* ---------- render ---------- */
 function render() {
+  var tabs = tabList().map(function (t) { return t[0]; });
+  if (!session) state.tab = 'kata';
+  else if (tabs.indexOf(state.tab) === -1) { state.tab = homeTab(); state.member = null; }
   renderHeader();
   renderTabs();
   if (!state.data) return;
-  if (state.tab === 'ready' && !state.pin) state.tab = 'members';
   var html;
-  if (state.tab === 'members') html = state.member ? memberDetail() : memberList();
+  if (session && !state.data.me) html = '<div class="stack"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>';
+  else if (state.tab === 'mine') html = myKata();
+  else if (state.tab === 'members') html = state.member ? memberDetail(memberByName(state.member)) : memberList();
   else if (state.tab === 'kata') html = state.kata ? kataDetail() : kataList();
-  else html = readyView();
+  else if (state.tab === 'requests') html = requestsView();
+  else if (state.tab === 'ready') html = readyView();
+  else html = accessView();
   html += '<div class="foot"><span>Updated ' + esc(new Date(state.data.loadedAt).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })) +
     (state.stale ? ' · refreshing…' : '') + '</span><span class="row" style="gap:14px">' +
-    (state.pin && state.sheetUrl ? '<a class="linkbtn" href="' + esc(state.sheetUrl) + '" target="_blank" rel="noopener">Open the sheet</a>' : '') +
+    (state.data.sheetUrl ? '<a class="linkbtn" href="' + esc(state.data.sheetUrl) + '" target="_blank" rel="noopener">Open the sheet</a>' : '') +
     '<button type="button" class="linkbtn" data-act="refresh">Refresh</button></span></div>';
   app.innerHTML = html;
   var s = $('search');
   if (s) s.addEventListener('input', function () {
     state.query = s.value;
-    $('results').innerHTML = state.tab === 'members' ? memberGroups() : kataGroups();
+    $('results').innerHTML = state.tab === 'members' ? memberGroups() : state.tab === 'access' ? accessRows() : kataGroups();
   });
 }
 
 function renderHeader() {
-  var b = $('lockBtn');
-  if (state.pin) { b.className = 'hbtn on'; b.innerHTML = ICON.open + 'Instructor'; b.setAttribute('aria-label', 'Instructor mode is on. Tap to lock'); }
-  else { b.className = 'hbtn'; b.innerHTML = ICON.lock + 'Instructor'; b.setAttribute('aria-label', 'Unlock instructor mode'); }
+  var b = $('acctBtn');
+  if (!session) {
+    b.className = 'hbtn'; b.innerHTML = ICON.lock + 'Sign in'; b.setAttribute('aria-label', 'Sign in');
+    return;
+  }
+  var name = (me() && me().name) || session.name, lv = level();
+  b.className = 'acct';
+  b.innerHTML = '<span class="ini">' + esc(initials(name)) + '</span>' + esc(lv);
+  b.setAttribute('aria-label', 'Account: ' + name + ', ' + lv + '. Tap for options');
 }
 
 function renderTabs() {
-  var T = [['members', 'Members', ICON.people], ['kata', 'Kata', ICON.book]];
-  if (state.pin) T.push(['ready', 'Ready to grade', ICON.trophy]);
+  var T = tabList();
+  $('tabs').hidden = !T.length;
   var inner = $('tabsIn');
+  inner.className = 'tabs-in' + (T.length >= 5 ? ' five' : '');
   inner.style.gridTemplateColumns = 'repeat(' + T.length + ',minmax(0,1fr))';
+  var waiting = state.data && state.data.requests ? state.data.requests.length : 0;
+  var links = state.data && state.data.linkRequests ? state.data.linkRequests.length : 0;
   inner.innerHTML = T.map(function (t) {
-    return '<button type="button" data-tab="' + t[0] + '"' + (state.tab === t[0] ? ' aria-current="page"' : '') + '>' + t[2] + '<span>' + t[1] + '</span></button>';
+    var badge = t[0] === 'requests' && waiting ? '<span class="badge" aria-label="' + waiting + ' waiting">' + waiting + '</span>'
+      : t[0] === 'access' && links ? '<span class="badge" aria-label="' + links + ' waiting">' + links + '</span>' : '';
+    return '<button type="button" data-tab="' + t[0] + '"' + (state.tab === t[0] ? ' aria-current="page"' : '') + '>' + t[2] + '<span>' + t[1] + '</span>' + badge + '</button>';
   }).join('');
 }
 
@@ -460,15 +606,91 @@ function catChips() {
   }).join('') + '</div>';
 }
 
-/* ----- Members ----- */
+/* ----- Signing in ----- */
+var formSeq = 0;
+function signInForm() {
+  var pwOn = state.data && state.data.passwordOn, n = ++formSeq;
+  if (state.pwMode && pwOn) {
+    /* TEMPORARY PASSWORD: the shared instructor password, as Moderator access. Remove this
+       branch, the "Instructor?" button below and the signInPassword parts once everyone has a code. */
+    return '<form class="signin" data-kind="password" autocomplete="off">' +
+      '<div class="warn" style="margin-bottom:12px">Temporary. The shared instructor password gives moderator access until moderators and admins have their own codes.</div>' +
+      '<div class="field"><label for="n' + n + '">Your name (for the change log)</label><input class="inp" id="n' + n + '" name="name" maxlength="40" placeholder="e.g. Mr. Luo" value="' + esc(recall('kt.instructor') || '') + '"></div>' +
+      '<div class="field"><label for="w' + n + '">Instructor password</label><input class="inp" id="w' + n + '" name="pw" type="password" maxlength="64" autocapitalize="off" autocorrect="off" spellcheck="false"></div>' +
+      '<label class="check"><input type="checkbox" name="keep" checked>Keep me signed in on this device</label>' +
+      '<div class="ferr" aria-live="polite"></div>' +
+      '<div class="btnrow"><button type="submit" class="btn primary">Unlock</button></div>' +
+      '<button type="button" class="linkbtn" data-pwmode="0">Back to access code</button></form>';
+  }
+  return '<form class="signin" data-kind="code" autocomplete="off">' +
+    '<div class="field"><label for="c' + n + '">Access code</label><input class="inp code" id="c' + n + '" name="code" maxlength="12" placeholder="e.g. K7P-4QX" autocapitalize="characters" autocorrect="off" spellcheck="false"></div>' +
+    '<label class="check"><input type="checkbox" name="keep" checked>Keep me signed in on this device</label>' +
+    '<div class="ferr" aria-live="polite"></div>' +
+    '<div class="btnrow"><button type="submit" class="btn primary">Sign in</button></div>' +
+    '<p class="hint" style="margin:10px 0 0">No code yet? Ask an instructor at the dojo.</p>' +
+    (pwOn ? '<button type="button" class="linkbtn" data-pwmode="1">Instructor? Use the temporary password</button>' : '') + '</form>';
+}
+function openSignIn(reason) {
+  openSheet('<div class="grab"></div><h2 id="sheetTitle">Sign in</h2><p>' + esc(reason || 'Use the access code from your instructor to see your own kata and ask for updates.') + '</p>' +
+    signInForm() + '<div class="btnrow" style="margin-top:8px"><button type="button" class="btn" data-close>Cancel</button></div>');
+}
+function submitSignIn(form) {
+  var kind = form.dataset.kind, keep = form.elements.keep.checked, err = form.querySelector('.ferr'), btn = form.querySelector('[type=submit]');
+  var p;
+  if (kind === 'code') {
+    var code = normCode(form.elements.code.value);
+    if (code.length < 4) { err.textContent = 'Type the code from your instructor.'; return; }
+    p = call('signIn', code);
+  } else {
+    var pw = form.elements.pw.value, name = form.elements.name.value.trim();
+    if (!pw) return;
+    if (name) store('kt.instructor', name);
+    p = call('signInPassword', name, pw);
+  }
+  btn.disabled = true; err.textContent = '';
+  p.then(function (res) {
+    saveSession({ p: res.p, k: res.k, name: res.name, level: res.level }, keep);
+    state.pwMode = false;
+    closeSheet();
+    var link = state.fromPlanner && state.kata;
+    state.data = publicData(state.data);
+    if (!link) { state.tab = homeTab(); state.member = null; state.kata = null; }
+    try { history.replaceState(snapshot(), ''); } catch (e) {}
+    render();
+    toast('Signed in as ' + res.name);
+    load();
+  }).catch(function (e) { err.textContent = errMsg(e); btn.disabled = false; });
+}
+function saveSession(s, keep) {
+  session = s;
+  store('kt.session', keep ? JSON.stringify(s) : null);
+  sstore('kt.session', keep ? null : JSON.stringify(s));
+}
+/** What anyone may see: drops everything that came with a sign-in. */
+function publicData(d) {
+  if (!d) return null;
+  return { dojoName: d.dojoName, belts: d.belts, statuses: d.statuses, kata: d.kata, members: [], progress: {}, me: null, passwordOn: d.passwordOn, loadedAt: d.loadedAt };
+}
+function signOut(quiet, msg) {
+  session = null; store('kt.session', null); sstore('kt.session', null);
+  state.data = publicData(state.data); cacheData();
+  state.tab = 'kata'; state.member = null; state.kata = null; state.who = null;
+  hideSheet(); render();
+  if (msg) toast(msg, true); else if (!quiet) toast('Signed out');
+}
+function openAccount() {
+  var m = me(), name = (m && m.name) || session.name;
+  var fam = m && m.family && m.family.length ? '<div class="sec"><h3>Family members you can see</h3><div>' + esc(m.family.join(', ')) + '</div></div>' : '';
+  openSheet('<div class="grab"></div><h2 id="sheetTitle">' + esc(name) + '</h2><p>' + esc(level()) + (m && m.password ? ' · signed in with the temporary instructor password' : '') + '</p>' +
+    '<div class="hint" style="margin:0">' + esc(LEVEL_HINT[level()] || '') + '</div>' + fam +
+    '<div class="btnrow" style="margin-top:18px"><button type="button" class="btn" data-close>Close</button><button type="button" class="btn primary" data-signout>Sign out</button></div>');
+}
+
+/* ----- Members (moderators) ----- */
 function memberList() {
   var n = state.data.members.length;
-  var sub = n + ' active members';
-  if (state.pin) {
-    var ready = state.data.members.filter(function (m) { var r = readiness(m); return r && r.ready; }).length;
-    sub = n + ' active · ' + ready + ' ready to grade';
-  }
-  return '<div class="stack"><div><h1>Members</h1><div class="sub">' + esc(sub) + '</div></div>' +
+  var ready = state.data.members.filter(function (m) { var r = readiness(m); return r && r.ready; }).length;
+  return '<div class="stack"><div><h1>Members</h1><div class="sub">' + esc(n + ' active · ' + ready + ' ready to grade') + '</div></div>' +
     searchBox('Search members') + '<div class="stack" id="results">' + memberGroups() + '</div></div>';
 }
 
@@ -485,7 +707,7 @@ function memberGroups() {
     var next = b.name ? nextBelt(b.name) : '';
     var readyN = 0, rows = '';
     group.forEach(function (m) {
-      var r = state.pin ? readiness(m) : null;
+      var r = readiness(m);
       if (r && r.ready) readyN++;
       var line, pct, tag = '', barCls = 'bar';
       if (r) {
@@ -503,28 +725,28 @@ function memberGroups() {
         '<span class="row"><span class="grow ' + barCls + '"><i style="width:' + pct + '%"></i></span><span class="c">' + esc(line) + '</span></span></button>';
     });
     var sub = group.length + (group.length === 1 ? ' member' : ' members');
-    if (state.pin && next) {
+    if (next) {
       var probe = readiness(group[0]);
       if (probe) sub += ' · ' + probe.required.length + ' kata needed for ' + next;
     }
     html += '<section class="card group"><button type="button" class="ghead" data-fold="' + esc(b.name) + '" aria-expanded="' + open + '">' +
       (b.name ? dot(b.name, true) : '') + '<span class="grow"><span class="t">' + (b.name ? esc(b.name) + ' belt' : 'No belt set') + '</span><span class="s">' + esc(sub) + '</span></span>' +
-      (state.pin && readyN ? '<span class="tag red">' + readyN + ' ready</span>' : '') +
+      (readyN ? '<span class="tag red">' + readyN + ' ready</span>' : '') +
       '<span class="chev">' + (open ? ICON.up : ICON.down).replace('<svg', '<svg class="chev"') + '</span></button>' +
       (open ? rows : '') + '</section>';
   });
   return html;
 }
 
-function memberDetail() {
-  var m = memberByName(state.member);
+/** One member's kata. Moderators can change statuses; members (My kata) can ask for changes. */
+function memberDetail(m, mine) {
   if (!m) { state.member = null; return memberList(); }
   var bi = beltIndex(m.belt);
   var exp = expectedKata(m), known = knownCount(m, exp);
-  var html = '<div class="stack"><button type="button" class="back" data-back>' + ICON.back + 'Members</button>' +
-    '<div><h1>' + esc(m.name) + '</h1><div class="row" style="gap:6px;margin-top:4px;font-size:14px;font-weight:800">' + dot(m.belt) + esc(m.belt ? m.belt + ' belt' : 'No belt set') + '</div></div>';
+  var html = mine ? '' : '<button type="button" class="back" data-back>' + ICON.back + 'Members</button>';
+  html += '<div><h1>' + esc(m.name) + '</h1><div class="row" style="gap:6px;margin-top:4px;font-size:14px;font-weight:800">' + dot(m.belt) + esc(m.belt ? m.belt + ' belt' : 'No belt set') + '</div></div>';
 
-  var r = state.pin ? readiness(m) : null;
+  var r = isMod() ? readiness(m) : null;
   if (r) {
     var left = r.missing.length;
     html += '<div class="card pad stack" style="gap:12px">' +
@@ -547,11 +769,16 @@ function memberDetail() {
       return '<div class="tile" style="' + tileStyle[Math.min(i, 2)] + '"><b>' + counts[i] + '</b><span>' + esc(s) + '</span></div>';
     }).join('') + '</div></div>';
 
+  if (mine) {
+    var waiting = myRequests().filter(function (q) { return q.member === m.name && q.state === 'Waiting'; }).length;
+    if (waiting) html += '<div class="alert">' + ICON.clock + '<span>' + (waiting === 1 ? '1 request' : waiting + ' requests') + ' waiting for an instructor</span></div>';
+  }
   html += catChips();
   if (bi >= 0 && bi < belts().length - 1) {
     html += '<div class="chips"><button type="button" class="chip dark" data-higher aria-pressed="' + state.showHigher + '">Show higher-belt kata</button></div>';
   }
-  if (state.pin) html += '<p class="hint">Tap a status to change it.</p>';
+  if (isMod()) html += '<p class="hint">Tap a status to change it.</p>';
+  else if (mine) html += '<p class="hint">Tap a kata to ask an instructor to change it.</p>';
 
   var reqMissing = {};
   if (r) r.missing.forEach(function (k) { reqMissing[k.name] = true; });
@@ -567,13 +794,13 @@ function memberDetail() {
     var kn = knownCount(m, group);
     body += '<section class="card group"><div class="ghead static">' + dot(b.name) + '<span class="grow"><span class="t">' + esc(b.name) + ' belt kata</span>' +
       (i > bi && bi >= 0 ? '<span class="s">Above ' + esc(m.belt) + ' belt</span>' : '') + '</span><span class="tag soft">' + kn + ' / ' + group.length + '</span></div>' +
-      group.map(function (k) { return memberKataRow(m, k, reqMissing[k.name] ? r.next : ''); }).join('') + '</section>';
+      group.map(function (k) { return memberKataRow(m, k, reqMissing[k.name] ? r.next : '', mine); }).join('') + '</section>';
   });
   var other = shown.filter(function (k) { return expectedIndex(k) < 0; });
   if (other.length) body += '<section class="card group"><div class="ghead static"><span class="grow"><span class="t">No belt set</span></span></div>' +
-    other.map(function (k) { return memberKataRow(m, k, ''); }).join('') + '</section>';
+    other.map(function (k) { return memberKataRow(m, k, '', mine); }).join('') + '</section>';
   html += body || '<div class="card empty">No kata in this category.</div>';
-  return html + '</div>';
+  return mine ? html : '<div class="stack">' + html + '</div>';
 }
 
 function kataSub(k) {
@@ -584,39 +811,126 @@ function kataSub(k) {
   return bits.join(' · ') || k.category;
 }
 
-function memberKataRow(m, k, neededFor) {
+function memberKataRow(m, k, neededFor, mine) {
   var s = statusOf(m.name, k.name);
   var sub = esc(kataSub(k));
   if (neededFor) sub = '<span class="need">Needed for ' + esc(neededFor) + '</span>' + (sub ? ' · ' + sub : '');
-  if (!state.pin) {
-    return '<div class="krow"><span class="grow"><span class="n">' + esc(k.name) + '</span><span class="s">' + sub + '</span></span>' + stPill(s) + '</div>';
+  if (isMod()) {
+    return '<div class="krow"><button type="button" class="grow" data-kata="' + esc(k.name) + '" style="border:0;background:none;padding:0;text-align:left;min-height:44px"><span class="n">' + esc(k.name) + '</span><span class="s">' + sub + '</span></button>' +
+      '<button type="button" class="st ' + stClass(s) + '" data-choose="' + esc(k.name) + '" data-who="' + esc(m.name) + '" aria-label="' + esc(k.name) + ': ' + esc(s || 'Not started') + '. Change">' + esc(s || 'Not started') + ICON.down + '</button></div>';
   }
-  return '<div class="krow"><button type="button" class="grow" data-kata="' + esc(k.name) + '" style="border:0;background:none;padding:0;text-align:left;min-height:44px"><span class="n">' + esc(k.name) + '</span><span class="s">' + sub + '</span></button>' +
-    '<button type="button" class="st ' + stClass(s) + '" data-choose="' + esc(k.name) + '" data-who="' + esc(m.name) + '" aria-label="' + esc(k.name) + ': ' + esc(s || 'Not started') + '. Change">' + esc(s || 'Not started') + ICON.down + '</button></div>';
+  if (mine) {
+    var w = waitingReq(m.name, k.name), d = w ? null : declinedReq(m.name, k.name);
+    if (w) sub = '<span class="need">Asked for ' + esc(w.to) + ' · waiting</span>';
+    else if (d) sub = 'Not changed to ' + esc(d.to) + ' · ask an instructor';
+    return '<button type="button" class="krow" data-ask="' + esc(k.name) + '" data-whom="' + esc(m.name) + '"><span class="grow"><span class="n">' + esc(k.name) + '</span><span class="s">' + sub + '</span></span>' +
+      stPill(s) + ICON.go.replace('<svg', '<svg class="go"') + '</button>';
+  }
+  return '<div class="krow"><span class="grow"><span class="n">' + esc(k.name) + '</span><span class="s">' + sub + '</span></span>' + stPill(s) + '</div>';
+}
+
+/* ----- My kata (members) ----- */
+function myKata() {
+  var d = state.data, m = viewedPerson(), mi = me() || {};
+  var html = '<div class="stack">';
+  var people = d.members.slice();
+  var links = d.myLinks || [];
+  if (people.length > 1 || mi.canLink || links.length) {
+    html += '<div class="chips" role="group" aria-label="Whose kata">' + people.map(function (p) {
+      return '<button type="button" class="chip dark" data-whopick="' + esc(p.name) + '" aria-pressed="' + (!!m && m.name === p.name) + '">' + esc(shortName(p.name)) + '</button>';
+    }).join('') + links.map(function (n) { return '<span class="chip wait">' + esc(shortName(n)) + ' · waiting</span>'; }).join('') +
+      (mi.canLink ? '<button type="button" class="chip dash" data-linkopen>' + ICON.plus + 'Family member</button>' : '') + '</div>';
+  }
+  if (!m) {
+    return html + '<div class="card pad"><div style="font-weight:800;margin-bottom:6px">No kata to show yet</div><div class="hint" style="margin:0">' +
+      (mi.canLink ? 'If you’re a parent or guardian, tap “Family member” to ask to see your child’s kata.' : 'Ask an instructor to check your name on the member list.') + '</div></div></div>';
+  }
+  return html + memberDetail(m, true) + '</div>';
+}
+
+function openAsk(member, kata) {
+  var cur = statusOf(member, kata), w = waitingReq(member, kata);
+  var sw = [['#FCEBDD', '#8A3F0C'], ['#E3EBFB', '#1F4BA5'], ['#111', '#fff']];
+  var hints = ['I’ve started it', 'I can do it on my own', 'I can do it well'];
+  var opts = statuses().map(function (s, i) {
+    if (s === cur) return '';
+    var c = sw[Math.min(i, 2)], on = w && w.to === s;
+    return '<button type="button" class="opt" data-askto="' + esc(s) + '" aria-pressed="' + !!on + '"><span class="st" style="background:' + c[0] + ';color:' + c[1] + ';border-color:' + c[0] + '">' + esc(s) + '</span>' +
+      '<span style="font-size:13.5px;font-weight:700;color:var(--ink2)">' + esc(hints[i] || '') + '</span></button>';
+  }).join('');
+  var many = state.data.members.length > 1;
+  openSheet('<div class="grab"></div><div class="hint" style="margin:0">Ask an instructor to change</div><h2 id="sheetTitle">' + esc(kata) + '</h2>' +
+    '<p>' + (many ? esc(member) + ' · ' : '') + 'Now: ' + esc(cur || 'Not started') + (w ? ' · you asked for ' + esc(w.to) : '') + '</p>' +
+    '<div class="opts" id="askOpts" data-member="' + esc(member) + '" data-kname="' + esc(kata) + '">' + opts + '</div>' +
+    '<div class="field" style="margin-top:12px"><label for="askNote">Note for the instructor (optional)</label><textarea class="inp" id="askNote" rows="2" maxlength="300" placeholder="e.g. Practised it with Sensei on Thursday">' + esc(w ? w.note : '') + '</textarea></div>' +
+    '<div class="ferr" id="askErr" aria-live="polite"></div>' +
+    '<div class="btnrow"><button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn primary" id="askSend" data-sendask' + (w ? '' : ' disabled') + '>' + (w ? 'Update request' : 'Send request') + '</button></div>' +
+    (w ? '<button type="button" class="linkbtn" style="margin-top:8px" data-withdraw="' + esc(w.id) + '">Withdraw this request</button>' : ''));
+}
+function sendAsk() {
+  var box = $('askOpts'), pick = box.querySelector('[aria-pressed=true]');
+  if (!pick) return;
+  var member = box.dataset.member, kata = box.dataset.kname, to = pick.dataset.askto, note = $('askNote').value.trim();
+  $('askSend').disabled = true; $('askErr').textContent = '';
+  call('requestChange', member, kata, to, note).then(function (res) {
+    var list = myRequests().filter(function (q) { return !(q.member === member && q.kata === kata); });
+    list.push(res);
+    state.data.myRequests = list; cacheData();
+    closeSheet(); render();
+    toast('Sent. An instructor will check it.');
+  }).catch(function (e) { $('askErr').textContent = errMsg(e); $('askSend').disabled = false; });
+}
+function withdraw(id) {
+  call('withdrawRequest', id).then(function () {
+    state.data.myRequests = myRequests().filter(function (q) { return q.id !== id; }); cacheData();
+    closeSheet(); render(); toast('Request withdrawn');
+  }).catch(function (e) { toast('Not withdrawn: ' + errMsg(e), true); });
+}
+function openLink() {
+  openSheet('<div class="grab"></div><h2 id="sheetTitle">Link a family member</h2><p>See and ask about a family member’s kata with your code. An admin checks the request first.</p>' +
+    '<form id="linkForm" autocomplete="off"><div class="field"><label for="linkName">Their name, as the dojo has it</label><input class="inp" id="linkName" maxlength="60" placeholder="First and last name" data-focus></div>' +
+    '<div class="ferr" id="linkErr" aria-live="polite"></div>' +
+    '<div class="btnrow"><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary" id="linkSend">Send request</button></div></form>');
 }
 
 /* ----- Kata ----- */
 function kataList() {
-  return '<div class="stack"><div><h1>Kata</h1><div class="sub">' + state.data.kata.length + ' kata in the dojo syllabus</div></div>' +
-    searchBox('Search kata') + catChips() + '<div class="stack" id="results">' + kataGroups() + '</div></div>';
+  var html = '<div class="stack">';
+  if (!session) {
+    html += '<section class="card pad"><h1 style="margin-bottom:10px">Sign in</h1><p class="hint" style="margin:0 0 12px;font-size:14px">Use the access code from your instructor to see your own kata and ask for updates.</p>' + signInForm() + '</section>' +
+      '<div style="margin-top:6px"><h2 class="h2">Dojo kata</h2><div class="sub">Everyone can see the list. Sign in to see which ones you know.</div></div>';
+  } else {
+    html += '<div><h1>Kata</h1><div class="sub">' + state.data.kata.length + ' kata in the dojo syllabus</div></div>';
+  }
+  return html + searchBox('Search kata') + catChips() + '<div class="stack" id="results">' + kataGroups() + '</div></div>';
 }
 
+/** Split by type (Solo, then Multi-person, then Weapon), then by the belt each is learned at. */
 function kataGroups() {
   var list = state.data.kata.filter(function (k) { return inCategory(k) && matches(state.query, k.name + ' ' + k.meaning); });
   if (!list.length) return '<div class="card empty">No kata match.</div>';
+  var person = viewedPerson();
   var html = '';
-  var idxs = belts().map(function (_, i) { return i; }).concat([-1]);
-  idxs.forEach(function (i) {
-    var group = list.filter(function (k) { return expectedIndex(k) === i; });
-    if (!group.length) return;
-    var name = i >= 0 ? belts()[i].name : '';
-    html += '<section class="card group"><div class="ghead static">' + (name ? dot(name) : '') + '<span class="grow"><span class="t">' + (name ? esc(name) + ' belt' : 'No belt set') + '</span></span><span class="tag soft">' + group.length + ' kata</span></div>' +
-      group.map(function (k) {
-        var know = 0, learning = 0;
-        state.data.members.forEach(function (m) { var s = statusOf(m.name, k.name); if (isKnown(s)) know++; else if (s) learning++; });
-        return '<button type="button" class="krow" data-kata="' + esc(k.name) + '"><span class="grow"><span class="n">' + esc(k.name) + '</span><span class="s">' +
-          esc(kataSub(k)) + ' · ' + know + ' know' + (learning ? ' · ' + learning + ' learning' : '') + '</span></span><span class="go">' + ICON.go.replace('<svg', '<svg class="go"') + '</span></button>';
-      }).join('') + '</section>';
+  categoryOrder(list).forEach(function (cat) {
+    var inCat = list.filter(function (k) { return k.category === cat; });
+    html += '<div class="cathead"><h2 class="h2">' + esc(cat) + ' kata</h2><span class="tag soft">' + inCat.length + '</span></div>';
+    belts().map(function (_, i) { return i; }).concat([-1]).forEach(function (i) {
+      var group = inCat.filter(function (k) { return expectedIndex(k) === i; });
+      if (!group.length) return;
+      var name = i >= 0 ? belts()[i].name : '';
+      html += '<section class="card group"><div class="ghead static">' + (name ? dot(name) : '') + '<span class="grow"><span class="t">' + (name ? esc(name) + ' belt' : 'No belt set') + '</span></span><span class="tag soft">' + group.length + '</span></div>' +
+        group.map(function (k) {
+          var sub = esc(kataSub(k)), right = ICON.go.replace('<svg', '<svg class="go"');
+          if (isMod()) {
+            var know = 0, learning = 0;
+            state.data.members.forEach(function (m) { var s = statusOf(m.name, k.name); if (isKnown(s)) know++; else if (s) learning++; });
+            sub += ' · ' + know + ' know' + (learning ? ' · ' + learning + ' learning' : '');
+          } else if (person) {
+            right = stPill(statusOf(person.name, k.name)) + right;
+          }
+          return '<button type="button" class="krow" data-kata="' + esc(k.name) + '"><span class="grow"><span class="n">' + esc(k.name) + '</span><span class="s">' + sub + '</span></span>' + right + '</button>';
+        }).join('') + '</section>';
+    });
   });
   return html;
 }
@@ -624,10 +938,6 @@ function kataGroups() {
 function kataDetail() {
   var k = kataByName(state.kata);
   if (!k) { state.kata = null; return kataList(); }
-  var counts = statuses().map(function (s) {
-    return state.data.members.filter(function (m) { return statusOf(m.name, k.name) === s; }).length;
-  });
-  var tileStyle = ['background:#FCEBDD;color:#8A3F0C', 'background:#E3EBFB;color:#1F4BA5', 'background:#111;color:#fff'];
   var li = learnedIndex(k);
   var backBtn = state.fromPlanner
     ? '<button type="button" class="back" data-planner>' + ICON.back + 'Back to the lesson plan</button>'
@@ -635,67 +945,128 @@ function kataDetail() {
   var html = '<div class="stack">' + backBtn +
     '<div><h1>' + esc(k.name) + '</h1>' + (k.meaning ? '<div class="sub" style="font-size:14px">' + esc(k.meaning) + '</div>' : '') +
     '<div class="chips" style="gap:6px;margin-top:8px">' +
-      (state.pin && li >= 0 ? '<span class="tag soft">' + dot(belts()[li].name) + 'Learned at ' + esc(k.learnedAt) + '</span>' : '') +
+      (isMod() && li >= 0 ? '<span class="tag soft">' + dot(belts()[li].name) + 'Learned at ' + esc(k.learnedAt) + '</span>' : '') +
       '<span class="tag soft">' + dot(k.belt) + esc(k.belt) + ' belt kata</span>' +
       '<span class="tag soft">' + esc(k.category) + '</span></div>' +
-    (k.notes ? '<p class="hint" style="margin:8px 0 0">' + esc(k.notes) + '</p>' : '') + '</div>' +
-    '<div class="tiles">' + statuses().map(function (s, i) {
-      return '<div class="tile" style="' + tileStyle[Math.min(i, 2)] + '"><b>' + counts[i] + '</b><span>' + esc(s) + '</span></div>';
-    }).join('') + '</div>';
+    (k.notes ? '<p class="hint" style="margin:8px 0 0">' + esc(k.notes) + '</p>' : '') + '</div>';
 
-  if (!state.data.members.length) return html + '<div class="card empty">No members yet.</div></div>';
-
-  if (state.pin) {
-    // The "still need it" list is fixed while the kata stays open, so a row doesn't jump
-    // away under your finger the moment someone is marked Knows.
-    if (!state.needList || state.needList.kata !== k.name) state.needList = { kata: k.name, names: stillNeed(k).map(function (m) { return m.name; }) };
-    var need = state.data.members.filter(function (m) { return state.needList.names.indexOf(m.name) !== -1; }).sort(byBeltDesc);
-    var from = expectedIndex(k);
-    var everyone = state.data.members.slice().sort(byBeltDesc);
-    if (state.kataView === 'need' && !need.length) state.kataView = 'all';
-    html += '<div class="chips"><button type="button" class="chip" data-kview="need" aria-pressed="' + (state.kataView === 'need') + '">Still need it (' + need.length + ')</button>' +
-      '<button type="button" class="chip" data-kview="all" aria-pressed="' + (state.kataView === 'all') + '">Everyone (' + everyone.length + ')</button></div>' +
-      '<p class="hint">' + (state.kataView === 'need' ? (from >= 0 ? belts()[from].name + ' belts and up who don’t know it yet. ' : '') : '') + 'Tap a status to change it; tap it again to clear it.</p>';
-    var list = state.kataView === 'need' ? need : everyone;
-    if (!list.length) html += '<div class="card empty">Everyone who should know this kata knows it.</div>';
-    list.forEach(function (m) {
-      var cur = statusOf(m.name, k.name), ci = statusIndex(cur);
-      html += '<div class="card pcard"><div class="row" style="gap:8px">' + dot(m.belt) + '<span class="grow" style="font-size:16px;font-weight:800">' + esc(m.name) + '</span>' +
-        '<span style="font-size:12.5px;font-weight:700;color:var(--muted)">' + esc(m.belt ? m.belt + ' belt' : '') + '</span></div>' +
-        '<div class="seg">' + statuses().map(function (s, i) {
-          var on = i === ci;
-          return '<button type="button" class="' + (on ? 'on' + Math.min(i, 2) : '') + '" aria-pressed="' + on + '" data-set="' + esc(s) + '" data-who="' + esc(m.name) + '" data-kname="' + esc(k.name) + '">' + esc(s) + '</button>';
-        }).join('') + '</div></div>';
-    });
-    return html + '</div>';
+  if (!session) {
+    return html + '<div class="card pad stack" style="gap:12px"><div style="font-weight:800">Sign in to see your progress on this kata.</div>' +
+      '<div class="btnrow"><button type="button" class="btn primary" data-signin>Sign in</button></div></div></div>';
+  }
+  if (!isMod()) {
+    var people = state.data.members;
+    if (!people.length) return html + '<div class="card empty">No member linked to your code yet.</div></div>';
+    return html + '<section class="card group"><div class="ghead static"><span class="grow"><span class="t">' + (people.length > 1 ? 'Your family’s progress' : 'Your progress') + '</span></span></div>' +
+      people.map(function (m) {
+        var w = waitingReq(m.name, k.name);
+        return '<button type="button" class="krow" data-ask="' + esc(k.name) + '" data-whom="' + esc(m.name) + '">' + dot(m.belt) + '<span class="grow"><span class="n">' + esc(m.name) + '</span><span class="s">' +
+          (w ? '<span class="need">Asked for ' + esc(w.to) + ' · waiting</span>' : 'Tap to ask for a change') + '</span></span>' + stPill(statusOf(m.name, k.name)) + ICON.go.replace('<svg', '<svg class="go"') + '</button>';
+      }).join('') + '</section></div>';
   }
 
-  // Public view: who knows it, then everyone else folded away.
-  var started = state.data.members.filter(function (m) { return statusOf(m.name, k.name); }).sort(function (a, b) {
-    return (statusIndex(statusOf(b.name, k.name)) - statusIndex(statusOf(a.name, k.name))) || byBeltDesc(a, b);
+  var counts = statuses().map(function (s) {
+    return state.data.members.filter(function (m) { return statusOf(m.name, k.name) === s; }).length;
   });
-  var notYet = state.data.members.filter(function (m) { return !statusOf(m.name, k.name); }).sort(byBeltDesc);
-  html += '<section class="card group"><div class="ghead static"><span class="grow"><span class="t">Who knows this kata</span></span><span class="tag soft">' + started.length + '</span></div>' +
-    (started.length ? started.map(function (m) {
-      return '<div class="krow">' + dot(m.belt) + '<span class="grow n">' + esc(m.name) + '</span>' + stPill(statusOf(m.name, k.name)) + '</div>';
-    }).join('') : '<div class="krow"><span class="grow s">Nobody has this kata marked yet.</span></div>') + '</section>';
-  if (notYet.length) {
-    html += '<section class="card group"><button type="button" class="ghead" data-notstarted aria-expanded="' + state.showNotStarted + '"><span class="grow"><span class="t">Not started yet</span></span><span class="tag soft">' + notYet.length + '</span>' +
-      (state.showNotStarted ? ICON.up : ICON.down).replace('<svg', '<svg class="chev"') + '</button>' +
-      (state.showNotStarted ? notYet.map(function (m) {
-        return '<div class="krow">' + dot(m.belt) + '<span class="grow n">' + esc(m.name) + '</span>' + stPill('') + '</div>';
-      }).join('') : '') + '</section>';
+  var tileStyle = ['background:#FCEBDD;color:#8A3F0C', 'background:#E3EBFB;color:#1F4BA5', 'background:#111;color:#fff'];
+  html += '<div class="tiles">' + statuses().map(function (s, i) {
+    return '<div class="tile" style="' + tileStyle[Math.min(i, 2)] + '"><b>' + counts[i] + '</b><span>' + esc(s) + '</span></div>';
+  }).join('') + '</div>';
+  if (!state.data.members.length) return html + '<div class="card empty">No members yet.</div></div>';
+
+  // The "still need it" list is fixed while the kata stays open, so a row doesn't jump
+  // away under your finger the moment someone is marked Knows.
+  if (!state.needList || state.needList.kata !== k.name) state.needList = { kata: k.name, names: stillNeed(k).map(function (m) { return m.name; }) };
+  var need = state.data.members.filter(function (m) { return state.needList.names.indexOf(m.name) !== -1; }).sort(byBeltDesc);
+  var from = expectedIndex(k);
+  var everyone = state.data.members.slice().sort(byBeltDesc);
+  if (state.kataView === 'need' && !need.length) state.kataView = 'all';
+  html += '<div class="chips"><button type="button" class="chip" data-kview="need" aria-pressed="' + (state.kataView === 'need') + '">Still need it (' + need.length + ')</button>' +
+    '<button type="button" class="chip" data-kview="all" aria-pressed="' + (state.kataView === 'all') + '">Everyone (' + everyone.length + ')</button></div>' +
+    '<p class="hint">' + (state.kataView === 'need' ? (from >= 0 ? belts()[from].name + ' belts and up who don’t know it yet. ' : '') : '') + 'Tap a status to change it; tap it again to clear it.</p>';
+  var list = state.kataView === 'need' ? need : everyone;
+  if (!list.length) html += '<div class="card empty">Everyone who should know this kata knows it.</div>';
+  list.forEach(function (m) {
+    var cur = statusOf(m.name, k.name), ci = statusIndex(cur);
+    html += '<div class="card pcard"><div class="row" style="gap:8px">' + dot(m.belt) + '<span class="grow" style="font-size:16px;font-weight:800">' + esc(m.name) + '</span>' +
+      '<span style="font-size:12.5px;font-weight:700;color:var(--muted)">' + esc(m.belt ? m.belt + ' belt' : '') + '</span></div>' +
+      '<div class="seg">' + statuses().map(function (s, i) {
+        var on = i === ci;
+        return '<button type="button" class="' + (on ? 'on' + Math.min(i, 2) : '') + '" aria-pressed="' + on + '" data-set="' + esc(s) + '" data-who="' + esc(m.name) + '" data-kname="' + esc(k.name) + '">' + esc(s) + '</button>';
+      }).join('') + '</div></div>';
+  });
+  return html + '</div>';
+}
+
+/* ----- Requests (moderators) ----- */
+function requestsView() {
+  var d = state.data, list = d.requests || [], recent = d.recent || [];
+  var html = '<div class="stack"><div><h1>Requests</h1><div class="sub">' + (list.length ? list.length + ' waiting · newest first' : 'Nothing waiting') + '</div></div>';
+  if (!list.length) html += '<div class="card empty">All caught up. No requests waiting.</div>';
+  list.forEach(function (q) {
+    var m = memberByName(q.member) || { belt: '' };
+    html += '<article class="card req"><div class="row" style="gap:8px">' + dot(m.belt) + '<span class="grow who">' + esc(q.member) + (m.belt ? ' · ' + esc(m.belt) : '') + '</span><span class="when">' + esc(ago(q.time)) + '</span></div>' +
+      '<h2 class="h2">' + esc(q.kata) + '</h2>' +
+      '<div class="row" style="gap:8px">' + stPill(statusOf(q.member, q.kata)) + ICON.arrow.replace('<svg', '<svg role="img" aria-label="changes to" style="width:20px;height:20px"').replace(' aria-hidden="true"', '') + stPill(q.to) + '</div>' +
+      (q.note ? '<div class="quote">“' + esc(q.note) + '”</div>' : '') +
+      (q.sentBy && q.sentBy !== q.member ? '<div class="hint" style="margin:0">Sent with ' + esc(q.sentBy) + '’s code</div>' : '') +
+      '<div class="btnrow"><button type="button" class="btn" data-decide="' + esc(q.id) + '" data-verdict="Declined">Decline</button><button type="button" class="btn primary" style="flex:1.4" data-decide="' + esc(q.id) + '" data-verdict="Approved">Approve</button></div></article>';
+  });
+  if (recent.length) {
+    html += '<h2 class="h2" style="font-size:16px;margin:10px 4px 0">Recently decided</h2><section class="card group">' + recent.map(function (q) {
+      return '<div class="krow"><span class="grow"><span class="n" style="font-size:14.5px">' + esc(q.kata) + ' → ' + esc(q.to) + '</span><span class="s">' +
+        esc(q.member + ' · by ' + (q.decidedBy === (me() && me().name) ? 'you' : q.decidedBy) + ', ' + (ago(q.decided) || '')) + '</span></span>' +
+        '<span class="tag ' + (q.state === 'Approved' ? 'ok' : '') + '">' + esc(q.state) + '</span></div>';
+    }).join('') + '</section>';
   }
   return html + '</div>';
 }
 
-/* ----- Ready to grade (instructors only) ----- */
+function decideRequest(id, verdict) {
+  var d = state.data;
+  var q = (d.requests || []).concat(d.linkRequests || []).filter(function (x) { return x.id === id; })[0];
+  if (!q) return;
+  var family = q.type === 'Family';
+  var was = family ? '' : statusOf(q.member, q.kata);
+  var restore = function () {
+    if (family) d.linkRequests = [q].concat((d.linkRequests || []).filter(function (x) { return x.id !== id; }));
+    else {
+      d.requests = [q].concat((d.requests || []).filter(function (x) { return x.id !== id; }));
+      d.recent = (d.recent || []).filter(function (x) { return x.id !== id; });
+      if (verdict === 'Approved') setProgress(q.member, q.kata, was);
+    }
+  };
+  if (family) d.linkRequests = d.linkRequests.filter(function (x) { return x.id !== id; });
+  else {
+    d.requests = d.requests.filter(function (x) { return x.id !== id; });
+    d.recent = [Object.assign({}, q, { state: verdict, decidedBy: me().name, decided: nowLocal() })].concat(d.recent || []);
+    if (verdict === 'Approved') setProgress(q.member, q.kata, q.to);
+  }
+  render(); toast('Saving…');
+  var label = family ? shortName(q.member) + ' for ' + shortName(q.sentBy) : q.kata + ' for ' + first(q.member);
+  call('decide', id, verdict).then(function () {
+    cacheData();
+    undoFn = function () {
+      restore(); render(); toast('Undoing…');
+      call('undoDecision', id).then(function () { cacheData(); toast('Undone'); load(); })
+        .catch(function (e) { toast('Not undone: ' + errMsg(e), true); load(); });
+    };
+    toast(verdict + ': ' + label, false, true);
+    if (family) load();
+  }).catch(function (e) { restore(); render(); toast('Not saved: ' + errMsg(e), true); });
+}
+function setProgress(member, kata, status) {
+  if (!state.data.progress[member]) state.data.progress[member] = {};
+  if (status) state.data.progress[member][kata] = status; else delete state.data.progress[member][kata];
+}
+
+/* ----- Ready to grade (moderators) ----- */
 function readyView() {
   var all = state.data.members.map(function (m) { return { m: m, r: readiness(m) }; }).filter(function (x) { return x.r; });
   var beltsWith = belts().filter(function (b) { return all.some(function (x) { return x.m.belt === b.name; }); }).map(function (b) { return b.name; });
   if (state.readyBelt !== 'All' && beltsWith.indexOf(state.readyBelt) === -1) state.readyBelt = 'All';
   var list = all.filter(function (x) { return state.readyBelt === 'All' || x.m.belt === state.readyBelt; });
-  var html = '<div class="stack"><div><div class="row" style="align-items:center"><h1 class="grow">Ready to grade</h1><span class="tag ink">' + ICON.lock + 'Instructors only</span></div>' +
+  var html = '<div class="stack"><div><div class="row" style="align-items:center"><h1 class="grow">Ready to grade</h1><span class="tag ink">' + ICON.lock + 'Moderators</span></div>' +
     '<div class="sub">Knows or Proficient on every kata the handbook lists for their belt and below</div></div>' +
     '<div class="chips" role="group" aria-label="Belt">' + ['All'].concat(beltsWith).map(function (b) {
       return '<button type="button" class="chip" data-rbelt="' + esc(b) + '" aria-pressed="' + (state.readyBelt === b) + '">' + esc(b === 'All' ? 'All belts' : b) + '</button>';
@@ -724,7 +1095,134 @@ function readyView() {
   return html + '</div>';
 }
 
-/* ---------- status changes: choose → "are you sure" → save → Undo ---------- */
+/* ----- Access (admins) ----- */
+function accessList() { return (state.data && state.data.access) || []; }
+function personByName(n) { return accessList().filter(function (p) { return p.name === n; })[0]; }
+function accessView() {
+  var d = state.data, list = accessList();
+  var mods = list.filter(function (p) { return p.level === 'Moderator'; }).length;
+  var admins = list.filter(function (p) { return p.level === 'Admin'; }).length;
+  var noCode = list.filter(function (p) { return !p.hasCode; }).length;
+  var html = '<div class="stack"><div><h1>Access</h1><div class="sub">' + list.length + ' people · ' + mods + ' moderator' + (mods === 1 ? '' : 's') + ' · ' + admins + ' admin' + (admins === 1 ? '' : 's') + ' · ' + noCode + ' without a code</div></div>';
+  /* TEMPORARY PASSWORD: the switch for the shared instructor password. */
+  if (d.passwordOn) {
+    html += '<section class="warncard"><div class="row" style="gap:8px">' + ICON.lock.replace('<svg', '<svg style="width:20px;height:20px"') + '<h2 class="h2 grow">Temporary instructor password</h2></div>' +
+      '<div style="font-size:13.5px;font-weight:700;line-height:1.45">Still works and gives moderator access. Turn it off once your moderators and admins have codes.</div>' +
+      '<button type="button" class="btn" data-pwoff>Turn it off</button></section>';
+  }
+  (d.linkRequests || []).forEach(function (q) {
+    var acct = personByName(q.sentBy);
+    var already = acct && acct.family.length ? acct.family.join(', ') : '';
+    html += '<article class="card req"><div class="row"><h2 class="h2 grow" style="font-size:16px">Family link request</h2><span class="when">' + esc(ago(q.time)) + '</span></div>' +
+      '<div style="font-size:14.5px;font-weight:600;line-height:1.45"><b>' + esc(q.sentBy) + '</b>’s code wants to also see and ask about <b>' + esc(q.member) + '</b>.</div>' +
+      (already ? '<div class="hint" style="margin:0">Already linked: ' + esc(already) + '</div>' : '') +
+      '<div class="btnrow"><button type="button" class="btn" data-decide="' + esc(q.id) + '" data-verdict="Declined">Decline</button><button type="button" class="btn primary" style="flex:1.4" data-decide="' + esc(q.id) + '" data-verdict="Approved">Approve</button></div></article>';
+  });
+  html += searchBox('Search people') + '<div class="chips" role="group" aria-label="Show">' + ['All', 'Moderators & admins', 'No code yet'].map(function (f) {
+    return '<button type="button" class="chip dark" data-afilter="' + esc(f) + '" aria-pressed="' + (state.accessFilter === f) + '">' + esc(f) + '</button>';
+  }).join('') + '</div>' +
+    '<div id="results">' + accessRows() + '</div>' +
+    '<button type="button" class="btn" style="border-style:dashed" data-addperson>Add someone who isn’t on the member list</button>';
+  return html + '</div>';
+}
+function accessRows() {
+  var f = state.accessFilter;
+  var list = accessList().filter(function (p) {
+    if (!matches(state.query, p.name)) return false;
+    if (f === 'Moderators & admins') return p.level !== 'Member';
+    if (f === 'No code yet') return !p.hasCode;
+    return true;
+  }).sort(function (a, b) { return (LEVELS.indexOf(b.level) - LEVELS.indexOf(a.level)) || a.name.localeCompare(b.name); });
+  if (!list.length) return '<div class="card empty">Nobody matches.</div>';
+  return '<section class="card group">' + list.map(function (p) {
+    var sub = p.hasCode ? 'Code made ' + shortDate(p.made) + (p.lastSeen ? ' · signed in ' + shortDate(p.lastSeen) : '') : '<span class="need">No code yet</span>';
+    if (!p.onList) sub = 'Not on the member list · ' + sub;
+    var cls = p.level === 'Admin' ? 'ink' : p.level === 'Moderator' ? 'red' : '';
+    return '<button type="button" class="krow" data-person="' + esc(p.name) + '">' + (p.belt ? dot(p.belt) : '<span class="dot" style="background:#fff"></span>') +
+      '<span class="grow"><span class="n">' + esc(p.name) + '</span><span class="s">' + (p.hasCode ? esc(sub) : sub) + '</span></span>' +
+      '<span class="tag ' + cls + '">' + esc(p.level) + '</span>' + ICON.go.replace('<svg', '<svg class="go"') + '</button>';
+  }).join('') + '</section>';
+}
+function openPerson(name) {
+  var p = personByName(name);
+  if (!p) return;
+  var c = state.confirm && state.confirm.name === name ? state.confirm.what : '';
+  var code;
+  if (state.newCode && state.newCode.name === name) {
+    code = '<div class="codebox"><b>' + esc(state.newCode.code) + '</b><span>Give this to ' + esc(first(name)) + ' now. It’s only shown once.</span>' +
+      '<button type="button" class="btn" data-copy="' + esc(state.newCode.code) + '">Copy</button></div>';
+  } else if (c === 'code') {
+    code = '<div class="warn">A new code stops the old one working straight away, and signs ' + esc(first(name)) + ' out everywhere.</div>' +
+      '<div class="btnrow"><button type="button" class="btn" data-cno>Cancel</button><button type="button" class="btn primary" data-makecode="' + esc(name) + '">Make a new code</button></div>';
+  } else if (c === 'remove') {
+    code = '<div class="warn">' + esc(first(name)) + ' won’t be able to sign in until you make a new code.</div>' +
+      '<div class="btnrow"><button type="button" class="btn" data-cno>Cancel</button><button type="button" class="btn primary" data-rmcode="' + esc(name) + '">Remove code</button></div>';
+  } else if (p.hasCode) {
+    code = '<div class="frow"><span class="grow">Made ' + esc(shortDate(p.made)) + '. It isn’t shown again.</span><button type="button" class="btn" data-cask="code">Make a new code</button></div>' +
+      '<button type="button" class="linkbtn" style="align-self:flex-start" data-cask="remove">Remove code</button>';
+  } else {
+    code = '<div class="frow"><span class="grow">No code yet</span><button type="button" class="btn primary" data-makecode="' + esc(name) + '">Make a code</button></div>';
+  }
+  var fam = p.family.map(function (f) {
+    return '<div class="frow"><span class="grow">Also sees ' + esc(f) + '</span><button type="button" class="btn" data-unfam="' + esc(f) + '" data-acct="' + esc(name) + '">Remove</button></div>';
+  }).join('') + p.seenBy.map(function (s) { return '<div class="frow"><span class="grow">Seen by ' + esc(s) + '’s code</span></div>'; }).join('');
+  openSheet('<div class="grab"></div><h2 id="sheetTitle">' + esc(name) + '</h2><p>' + esc(p.belt ? p.belt + ' belt' : (p.onList ? 'No belt set' : 'Not on the member list')) + '</p>' +
+    '<div class="sec" style="border:0;margin:0;padding:0"><h3>Access level</h3><div class="seg lv">' + LEVELS.map(function (l) {
+      return '<button type="button" data-level="' + l + '" data-pname="' + esc(name) + '" aria-pressed="' + (p.level === l) + '">' + l + '</button>';
+    }).join('') + '</div><div class="hint" style="margin:0">' + esc(LEVEL_HINT[p.level]) + '</div><div class="ferr" id="personErr" aria-live="polite" style="margin:0"></div></div>' +
+    '<div class="sec"><h3>Access code</h3>' + code + '</div>' +
+    '<div class="sec"><h3>Family links</h3>' + (fam || '<div style="font-size:14px;font-weight:700;color:var(--ink2)">None</div>') + '</div>' +
+    '<div class="btnrow" style="margin-top:18px"><button type="button" class="btn primary" data-close>Done</button></div>');
+}
+function personErr(e) { var x = $('personErr'); if (x) x.textContent = errMsg(e); else toast(errMsg(e), true); }
+function setLevel(name, lv) {
+  var p = personByName(name); if (!p || p.level === lv) return;
+  var before = p.level; p.level = lv; openPerson(name); render();
+  call('setLevel', name, lv).then(function () {
+    cacheData();
+    if (me() && name === me().name) { closeSheet(); load(); }
+  }).catch(function (e) { p.level = before; openPerson(name); render(); personErr(e); });
+}
+function makeCode(name) {
+  state.confirm = null;
+  call('makeCode', name).then(function (res) {
+    var p = personByName(name);
+    if (p) { p.hasCode = true; p.made = nowLocal(); }
+    state.newCode = { name: name, code: res.code };
+    openPerson(name); render();
+  }).catch(function (e) { openPerson(name); personErr(e); });
+}
+function removeCode(name) {
+  state.confirm = null;
+  call('removeCode', name).then(function () {
+    var p = personByName(name); if (p) { p.hasCode = false; p.made = ''; }
+    openPerson(name); render();
+  }).catch(function (e) { openPerson(name); personErr(e); });
+}
+function removeFamily(acct, member) {
+  call('removeFamily', acct, member).then(function () {
+    var a = personByName(acct), m = personByName(member);
+    if (a) a.family = a.family.filter(function (x) { return x !== member; });
+    if (m) m.seenBy = m.seenBy.filter(function (x) { return x !== acct; });
+    openPerson(acct);
+  }).catch(personErr);
+}
+function openAddPerson() {
+  openSheet('<div class="grab"></div><h2 id="sheetTitle">Add someone</h2><p>For instructors or parents who aren’t on the member list. Members already have a row.</p>' +
+    '<form id="addForm" autocomplete="off"><div class="field"><label for="addName">Name</label><input class="inp" id="addName" maxlength="60" placeholder="e.g. Mr. Luo" data-focus></div>' +
+    '<div class="field"><label>Access level</label><div class="seg lv" id="addLevel">' + LEVELS.map(function (l) {
+      return '<button type="button" data-addlv="' + l + '" aria-pressed="' + (l === 'Moderator') + '">' + l + '</button>';
+    }).join('') + '</div></div>' +
+    '<div class="ferr" id="addErr" aria-live="polite"></div>' +
+    '<div class="btnrow"><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary" id="addGo">Add</button></div></form>');
+}
+function askPasswordOff() {
+  pending = { pwOff: true };
+  showFloat('<div class="confirm" role="alertdialog" aria-label="Confirm"><div class="q">Turn off the temporary instructor password? Anyone signed in with it is signed out. Make sure you have your own admin code first.</div>' +
+    '<div class="btnrow"><button type="button" class="btn" data-cancel>Cancel</button><button type="button" class="btn primary" data-pwoffyes>Turn it off</button></div></div>');
+}
+
+/* ---------- status changes (moderators): choose → "are you sure" → save → Undo ---------- */
 function openChooser(member, kata) {
   var cur = statusOf(member, kata);
   var sw = [['#fff', '#5E5E5E', '1.5px dashed #9A9A9A'], ['#FCEBDD', '#8A3F0C', '0'], ['#E3EBFB', '#1F4BA5', '0'], ['#111', '#fff', '0']];
@@ -750,34 +1248,40 @@ function askChange(member, kata, to) {
 
 function save(change, isUndo) {
   var member = change.member, kata = change.kata, before = change.from, after = change.to;
-  if (!state.data.progress[member]) state.data.progress[member] = {};
-  state.data.progress[member][kata] = after;
+  setProgress(member, kata, after);
   cacheData();
   render();
   toast(isUndo ? 'Undoing…' : 'Saving…');
-  call('saveStatus', state.pin, member, kata, after, state.instructor)
+  call('saveStatus', member, kata, after)
     .then(function () {
-      if (isUndo) { lastSave = null; toast('Undone · ' + first(member) + ' back to ' + (after || 'Not started')); }
-      else { lastSave = change; toast('Saved · ' + first(member) + ' → ' + (after || 'Not started'), false, true); }
+      if (isUndo) toast('Undone · ' + first(member) + ' back to ' + (after || 'Not started'));
+      else {
+        undoFn = function () { save({ member: member, kata: kata, from: after, to: before }, true); };
+        toast('Saved · ' + first(member) + ' → ' + (after || 'Not started'), false, true);
+      }
     })
     .catch(function (err) {
-      state.data.progress[member][kata] = before;
+      setProgress(member, kata, before);
       cacheData();
-      var msg = errMsg(err);
-      if (/PIN|password|locked/i.test(msg)) lock(true);
       render();
-      toast('Not saved: ' + msg, true);
+      toast('Not saved: ' + errMsg(err), true);
     });
 }
 
 /* ---------- sheets, floats, toasts ---------- */
 function openSheet(html) {
   clearTimeout(toastTimer); if (!pending) hideFloat();
-  if ($('scrim').hidden) { try { history.pushState(Object.assign(snapshot(), { sheet: 1 }), ''); } catch (e) {} }
+  var fresh = $('scrim').hidden;
+  if (fresh) { try { history.pushState(Object.assign(snapshot(), { sheet: 1 }), ''); } catch (e) {} }
+  var y = $('sheet').scrollTop;
   $('sheet').innerHTML = html; $('scrim').hidden = false; document.body.style.overflow = 'hidden';
+  if (!fresh) { $('sheet').scrollTop = y; return; }
   setTimeout(function () { var f = $('sheet').querySelector('[data-focus], input, .opt, button'); if (f) f.focus(); }, 40);
 }
-function hideSheet() { $('scrim').hidden = true; document.body.style.overflow = ''; $('sheet').innerHTML = ''; }
+function hideSheet() {
+  $('scrim').hidden = true; document.body.style.overflow = ''; $('sheet').innerHTML = '';
+  state.newCode = null; state.confirm = null;
+}
 function closeSheet() { if ($('scrim').hidden) return; if (history.state && history.state.sheet) history.back(); else hideSheet(); }
 function showFloat(html, cls) { var f = $('float'); f.className = 'float' + (cls ? ' ' + cls : ''); f.innerHTML = html; f.hidden = false; }
 function hideFloat() { $('float').hidden = true; $('float').innerHTML = ''; }
@@ -785,34 +1289,10 @@ var toastTimer;
 function toast(msg, bad, undo) {
   clearTimeout(toastTimer);
   pending = null;
+  if (!undo) undoFn = null;
   showFloat('<div class="toast' + (bad ? ' bad' : '') + '" role="status">' + (bad ? '' : ICON.check.replace('<svg', '<svg class="ok"')) +
     '<div class="m">' + esc(msg) + '</div>' + (undo ? '<button type="button" class="undo" data-undo>Undo</button>' : '') + '</div>', bad ? 'bad' : '');
-  if (!/…$/.test(msg)) toastTimer = setTimeout(function () { hideFloat(); if (undo) lastSave = null; }, undo ? 8000 : bad ? 5000 : 2500);
-}
-
-/* ---------- instructor unlock ---------- */
-function openUnlock(reason) {
-  openSheet('<div class="grab"></div><h2 id="sheetTitle">Instructor mode</h2><p>' + esc(reason || 'Unlock to update kata progress and see who’s ready to grade.') + '</p>' +
-    '<form id="pinForm" autocomplete="off"><div class="field"><label for="instName">Your name (for the change log)</label><input class="inp" id="instName" maxlength="40" placeholder="e.g. Mr. Luo" value="' + esc(recall('kt.instructor') || '') + '"></div>' +
-    '<div class="field"><label for="pinInput">Password</label><input class="inp" id="pinInput" type="password" maxlength="64" autocapitalize="off" autocorrect="off" spellcheck="false" required data-focus></div>' +
-    '<label class="check"><input type="checkbox" id="keep" checked>Stay unlocked on this device</label>' +
-    '<div class="ferr" id="pinErr" aria-live="polite"></div>' +
-    '<div class="btnrow"><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary" id="pinOk">Unlock</button></div></form>');
-  setTimeout(function () { var n = $('instName'); ($(n && n.value ? 'pinInput' : 'instName') || n).focus(); }, 60);
-}
-function unlockWith(pin, name, keep) {
-  return call('verifyPin', pin).then(function (res) {
-    state.pin = pin; state.instructor = name;
-    state.sheetUrl = (res && res.sheetUrl) || null;
-    if (name) store('kt.instructor', name);
-    store('kt.pin', keep ? pin : null);
-  });
-}
-function lock(quiet) {
-  state.pin = null; state.sheetUrl = null; store('kt.pin', null);
-  if (state.tab === 'ready') state.tab = 'members';
-  render();
-  if (!quiet) toast('Instructor mode locked');
+  if (!/…$/.test(msg)) toastTimer = setTimeout(function () { hideFloat(); if (undo) undoFn = null; }, undo ? 8000 : bad ? 5000 : 2500);
 }
 
 /* ---------- events ---------- */
@@ -820,7 +1300,38 @@ document.addEventListener('click', function (e) {
   var t = e.target.closest('button, a');
   if (!t) { if (e.target === $('scrim')) closeSheet(); return; }
   var d = t.dataset;
-  if (d.tab) { if (d.tab === state.tab && !state.member && !state.kata) { scrollTop(); return; } state.fromPlanner = false; go(d.tab); }
+  if (t.id === 'acctBtn') { if (session) openAccount(); else openSignIn(); }
+  else if (d.signin !== undefined) { openSignIn(); }
+  else if (d.signout !== undefined) { signOut(); load(); }
+  else if (d.pwmode !== undefined) { state.pwMode = d.pwmode === '1'; var f = t.closest('form'); if (f) { f.outerHTML = signInForm(); } }
+  else if (d.tab) { if (d.tab === state.tab && !state.member && !state.kata) { scrollTop(); return; } state.fromPlanner = false; go(d.tab); }
+  else if (d.whopick) { state.who = d.whopick; render(); }
+  else if (d.linkopen !== undefined) { openLink(); }
+  else if (d.ask !== undefined) { openAsk(d.whom, d.ask); }
+  else if (d.askto !== undefined) {
+    Array.prototype.forEach.call(t.parentNode.children, function (b) { b.setAttribute('aria-pressed', b === t ? 'true' : 'false'); });
+    $('askSend').disabled = false;
+  }
+  else if (d.sendask !== undefined) { sendAsk(); }
+  else if (d.withdraw) { withdraw(d.withdraw); }
+  else if (d.decide) { decideRequest(d.decide, d.verdict); }
+  else if (d.person) { state.newCode = null; state.confirm = null; openPerson(d.person); }
+  else if (d.level) { setLevel(d.pname, d.level); }
+  else if (d.cask) { var nm = $('sheetTitle').textContent; state.confirm = { name: nm, what: d.cask }; openPerson(nm); }
+  else if (d.cno !== undefined) { var nm2 = $('sheetTitle').textContent; state.confirm = null; openPerson(nm2); }
+  else if (d.makecode) { makeCode(d.makecode); }
+  else if (d.rmcode) { removeCode(d.rmcode); }
+  else if (d.copy) { try { navigator.clipboard.writeText(d.copy).then(function () { t.textContent = 'Copied'; }); } catch (x) {} }
+  else if (d.unfam) { removeFamily(d.acct, d.unfam); }
+  else if (d.afilter) { state.accessFilter = d.afilter; render(); }
+  else if (d.addperson !== undefined) { openAddPerson(); }
+  else if (d.addlv) { Array.prototype.forEach.call(t.parentNode.children, function (b) { b.setAttribute('aria-pressed', b === t ? 'true' : 'false'); }); }
+  else if (d.pwoff !== undefined) { askPasswordOff(); }
+  else if (d.pwoffyes !== undefined) {
+    pending = null; hideFloat();
+    call('setPassword', false).then(function () { state.data.passwordOn = false; cacheData(); render(); toast('The temporary password is off'); })
+      .catch(function (err) { toast('Not changed: ' + errMsg(err), true); });
+  }
   else if (d.member !== undefined && t.classList.contains('mrow')) { go('members', d.member); }
   else if (d.kata !== undefined && !d.choose) { go('kata', null, d.kata); }
   else if (d.back !== undefined) { go(state.tab); }
@@ -836,29 +1347,42 @@ document.addEventListener('click', function (e) {
   else if (d.set !== undefined) { var cur = statusOf(d.who, d.kname); askChange(d.who, d.kname, cur === d.set ? '' : d.set); }
   else if (d.confirm !== undefined) { var c = pending; pending = null; hideFloat(); if (c) save(c); }
   else if (d.cancel !== undefined) { pending = null; hideFloat(); }
-  else if (d.undo !== undefined) { var u = lastSave; lastSave = null; if (u) save({ member: u.member, kata: u.kata, from: u.to, to: u.from }, true); }
+  else if (d.undo !== undefined) { var u = undoFn; undoFn = null; if (u) u(); }
   else if (d.close !== undefined) { closeSheet(); }
   else if (d.act === 'refresh') { load(true); }
-  else if (t.id === 'lockBtn') { if (state.pin) lock(); else openUnlock(); }
 });
 
 document.addEventListener('submit', function (e) {
-  if (e.target.id !== 'pinForm') return;
+  var f = e.target;
   e.preventDefault();
-  var pin = $('pinInput').value.trim(), name = $('instName').value.trim(), keep = $('keep').checked;
-  if (!pin) return;
-  $('pinOk').disabled = true; $('pinErr').textContent = '';
-  unlockWith(pin, name, keep)
-    .then(function () {
-      if (state.kata && stillNeed(kataByName(state.kata) || { learnedAt: '', belt: '' }).length) state.kataView = 'need';
-      closeSheet(); render(); toast('Instructor mode on');
-    })
-    .catch(function (err) { $('pinErr').textContent = errMsg(err); })
-    .then(function () { var b = $('pinOk'); if (b) b.disabled = false; });
+  if (f.classList.contains('signin')) { submitSignIn(f); return; }
+  if (f.id === 'linkForm') {
+    var name = $('linkName').value.trim();
+    if (!name) return;
+    $('linkSend').disabled = true; $('linkErr').textContent = '';
+    call('requestLink', name).then(function (res) {
+      state.data.myLinks = (state.data.myLinks || []).filter(function (n) { return n !== res.member; }).concat([res.member]);
+      cacheData(); closeSheet(); render(); toast('Sent. An admin will check it.');
+    }).catch(function (err) { $('linkErr').textContent = errMsg(err); $('linkSend').disabled = false; });
+  }
+  if (f.id === 'addForm') {
+    var n = $('addName').value.trim(), lvBtn = $('addLevel').querySelector('[aria-pressed=true]');
+    if (!n) return;
+    $('addGo').disabled = true; $('addErr').textContent = '';
+    call('addPerson', n, lvBtn ? lvBtn.dataset.addlv : 'Member').then(function (res) {
+      state.data.access = [{ name: res.name, belt: '', onList: false, level: res.level, hasCode: false, made: '', lastSeen: '', family: [], seenBy: [] }].concat(accessList());
+      cacheData(); render(); state.newCode = null; state.confirm = null; openPerson(res.name);
+    }).catch(function (err) { $('addErr').textContent = errMsg(err); $('addGo').disabled = false; });
+  }
 });
 
 document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape') { if (!$('scrim').hidden) closeSheet(); else if (pending) { pending = null; hideFloat(); } }
+});
+
+// Moderators coming back to the app see new requests without pressing Refresh.
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState === 'visible' && Date.now() - lastLoad > 30000) load();
 });
 
 // Opened from the Lesson Planner as a new tab: close it to land back on the plan.
@@ -872,9 +1396,15 @@ function backToPlanner() {
 function cacheData() { try { store('kt.data', JSON.stringify(state.data)); } catch (e) {} }
 function load(manual) {
   if (manual) { state.stale = true; render(); }
+  lastLoad = Date.now();
+  var asked = session;
   call('getData')
     .then(function (data) {
-      state.data = data; state.stale = false; cacheData();
+      if (session !== asked) return;              // signed in or out meanwhile
+      if (data.signedOut && session) { state.data = data; signOut(true, 'Please sign in again.'); return; }
+      state.data = data; state.stale = false;
+      if (session && data.me) { session.level = data.me.level; }
+      cacheData();
       $('dojoName').textContent = data.dojoName || 'Dojo';
       applyLink();
       render();
@@ -894,22 +1424,23 @@ function applyLink() {
     state.fromPlanner = l.from === 'planner';
     state.tab = 'kata'; state.kata = l.kata; state.member = null;
     state.kataView = 'need';
-    // Record the kata as this history step, so closing the password panel stays on it.
+    // Record the kata as this history step, so closing the sign-in panel stays on it.
     try { history.replaceState(snapshot(), '', location.pathname); } catch (e) {}
-    if (!state.pin) setTimeout(function () { openUnlock('Unlock to mark who has improved on ' + l.kata + '.'); }, 200);
+    if (!isMod()) setTimeout(function () { openSignIn('Sign in as a moderator to mark who has improved on ' + l.kata + '.'); }, 200);
   }
 }
 
 (function start() {
+  store('kt.pin', null);                          // the old shared-password unlock is gone
+  try { session = JSON.parse(recall('kt.session') || srecall('kt.session') || 'null'); } catch (e) { session = null; }
+  if (session && !(session.p && session.k)) session = null;
   var cached = null;
   try { cached = JSON.parse(recall('kt.data') || 'null'); } catch (e) {}
-  if (cached && cached.kata && cached.members) { state.data = cached; state.stale = true; $('dojoName').textContent = cached.dojoName || 'Dojo'; }
-  var savedPin = recall('kt.pin');
-  if (savedPin) {
-    state.pin = savedPin; state.instructor = recall('kt.instructor') || '';
-    call('verifyPin', savedPin).then(function (res) { state.sheetUrl = (res && res.sheetUrl) || null; render(); })
-      .catch(function () { lock(true); });
+  var cachedFor = cached && cached.me ? cached.me.name : null;
+  if (cached && cached.kata && cached.members && cachedFor === (session ? session.name : null)) {
+    state.data = cached; state.stale = true; $('dojoName').textContent = cached.dojoName || 'Dojo';
   }
+  state.tab = homeTab();
   if (PARAMS.get('kata')) { link = { kata: PARAMS.get('kata'), from: PARAMS.get('from') || '' }; applyLink(); }
   // Tidy the address bar (the kata link has been read); back from the first screen leaves the site.
   try { history.replaceState(snapshot(), '', location.pathname); } catch (e) {}

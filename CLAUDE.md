@@ -1,6 +1,19 @@
 # SKA Kata Tracker: handoff notes
 
-Tracks which kata each member of **Scarborough Academy of Karate (SKA)** knows. Members can see their own and everyone else's progress; instructors unlock with the shared password to update statuses and see who's ready to grade. Built to sit in the dojo's Wix site and to work on phones (Gary: Samsung Android, Chrome).
+Tracks which kata each member of **Scarborough Academy of Karate (SKA)** knows. Built to sit in the dojo's Wix site (already behind its members' sign-in) and to work on phones (Gary: Samsung Android, Chrome).
+
+## Access levels (Gary's rules; Code.gs enforces them, the page only follows)
+
+| Who | Sees and does |
+| --- | --- |
+| Signed out | The dojo's kata list only (no names, no counts) |
+| **Member** | Their own kata (and family members an admin has linked); taps a kata to **ask** for Learning / Knows / Proficient with an optional note; can withdraw; asks to link a family member. Never sees others, readiness or Ready to grade |
+| **Moderator** | Everyone's kata, changes statuses (are you sure + Undo), **Requests** tab to approve/decline (Undo), Ready to grade ("for now"; Gary may revoke it) |
+| **Admin** | Everything, plus the **Access** tab: set levels, make/remove access codes, approve family links (admins only), remove links, add people not on the member list (instructors, parents), turn off the temporary password |
+
+- Sign-in is a personal **access code** for now (6 characters like `K7P-4QX`, no 0/O/1/I/L). Gary later wants to use the dojo website's sign-in instead. A code is shown once when made; only `SHA-256("ska-kata:" + CODE)` is stored. Making a new code or removing it signs that person out everywhere. Sheet menu **Kata Tracker → Make an access code…** also makes one (that's how the first admin was made). **Sign everyone out** rotates `TOKEN_SECRET`.
+- Can't remove or demote the last admin who has a code.
+- **TEMPORARY PASSWORD**: the old shared instructor password (Settings B3) still signs in as Moderator until an admin taps **Turn it off** (Script Property `PASSWORD_OFF` = 1). Gary wants the button and code removed later so there's no back door: search Code.gs and index.html for `TEMPORARY PASSWORD`.
 
 ## Where things live
 
@@ -14,11 +27,12 @@ Why two addresses: the page used to be served by Apps Script itself, but on phon
 
 ## API (`Code.gs`)
 
-- `POST` (body sent as `text/plain` to avoid a CORS preflight): `{"action": "getData" | "verifyPin" | "saveStatus", "args": [...]}` → `{ok, result}` or `{ok:false, error}`.
-  - `getData()`: dojo name, belts (with colours), statuses, kata, active members, progress matrix. Never returns the password.
-  - `verifyPin(pin)`: checks the password; returns the sheet's URL (only after a correct password). 8 wrong tries lock editing for 15 min.
-  - `saveStatus(pin, member, kata, status, instructorName)`: writes one Progress cell ('' clears it) and appends to Log.
-- `GET ?api=rpc&callback=fn&action=…` (fallback route): same three actions answered as JavaScript `fn({ok,…})`, loaded with a `<script>` tag. Some phones (Gary's Android Chrome) never get fetch replies from Apps Script even though the script runs; the page switches to this route after one fetch failure. The password never goes in the URL: `verifyPin`/`saveStatus` send `t` (ms) and `h` = SHA-256 of `t:password[:member:kata:status]`; `t` must be within 15 min. `clientLog` (POST, sent by `sendBeacon`) writes what failed to the Executions log (look for "Kata Tracker page problem").
+- Every call is `{action, a, t, p, h}` → `{ok, result}` or `{ok:false, error}`, sent as a `text/plain` POST (no CORS preflight) or, as a fallback, `GET ?api=rpc&callback=fn&…` answered as JavaScript `fn({ok,…})` (Gary's Android Chrome never gets fetch replies from Apps Script; the page switches after one failure). `a` = JSON text of the arguments, `t` = phone clock (ms, must be within 15 min).
+  - `signIn`: `h` = SHA-256(`t:` + SHA-256(`ska-kata:` + CODE)) → `{p, k, name, level}`. `p` is the session (name, code check, 400-day expiry, base64), `k` = HMAC of `p` with `TOKEN_SECRET`, kept on the phone (`kt.session`, or sessionStorage if "Keep me signed in" is off).
+  - Signed calls send `p` and `h` = SHA-256(`t:k:action:a`), so no code, password or key is ever in an address. The level is read fresh from the Access tab on every call. Errors starting `SIGNED_OUT:` make the page sign out.
+  - `getData` (signed out or in): only what that level may see (see the table). Members get `members`/`progress` for themselves and linked family, `myRequests`, `myLinks`; moderators also `requests`, `recent`; admins also `linkRequests`, `access`, `sheetUrl`.
+  - Member: `requestChange(member, kata, to, note)`, `withdrawRequest(id)`, `requestLink(name)`. Moderator: `saveStatus(member, kata, status)`, `decide(id, 'Approved'|'Declined')`, `undoDecision(id)`. Admin: `setLevel`, `makeCode`, `removeCode`, `addPerson`, `removeFamily`, `setPassword(false)`.
+  - 10 wrong codes/passwords pause sign-in for 15 min. `clientLog` (sent by `sendBeacon`) writes what failed to the Executions log (look for "Kata Tracker page problem").
 - `GET ?api=summary`: every kata with rank belt, Learned at belt and how many active members still need it (counts only). Used by the SKA Lesson Planner.
 
 ## Sheet
@@ -26,18 +40,22 @@ Why two addresses: the page used to be served by Apps Script itself, but on phon
 - **Kata**: Order, Kata, English Translation, Category (Solo / Multi-person / Weapon), Belt (= rank), Notes, **Learned at** (the belt the Karate Instructor Handbook v2.3 expects it learned at; "Blue/Purple" is the shared list; blank = not required for grading).
 - **Members**: Name, Belt, Active (No hides someone without losing history), Notes. Juniors are listed by initial + surname on purpose.
 - **Progress**: one row per member, one column per kata (A Member, B Belt via ARRAYFORMULA). New members/kata get rows/columns automatically, or via the sheet menu **Kata Tracker → Sync progress**.
-- **Log**: every change from the app (time, member, kata, status, instructor name).
+- **Log**: every change from the app (time, member, kata, status, who; approvals end in "(request)").
+- **Access** (made automatically): Name, Level (Member/Moderator/Admin), Code hash, Code made, Family (comma list of members this code also sees), Last signed in, Notes. People without a row are Members with no code. Deleting a row signs that person out.
+- **Requests** (made automatically): ID, Time, Type (Kata / Family), Member, Kata, From, To, Note, Sent by, State (Waiting / Approved / Declined / Withdrawn), Decided by, Decided at, Was (status before an approval, for Undo).
 - **Settings**: Dojo name (B2), Instructor password (B3), statuses in D2:D10 (Learning, Knows, Proficient; anything after the first counts as knowing), belts with colours from row 7, notes in column F.
 
 ## App (`index.html`, one file)
 
 - Look (Gary's choices): same as the SKA Lesson Planner (red #C8102E header with the dojo logo, black secondary, M PLUS Rounded 1c + Nunito Sans) on a light grey page (#ECECEA) with white cards. No dark mode.
-- Tabs: **Members** (belt groups, foldable, search) and **Kata** (search, Solo / Multi-person / Weapon). Kata are grouped by their expected belt (Learned at if set, else rank).
-- **Instructor mode** (password; "Stay unlocked on this device" keeps it in `kt.pin`) adds: the **Ready to grade** tab, "Ready for X"/"N to go" badges, the "Still needs" panel on member cards, Learned at chips, and editing. Members (locked) never see readiness, by Gary's choice.
+- Tabs by level: signed out = Kata (with the sign-in card on top, no tab bar); Member = **My kata**, **Kata**; Moderator = **Members**, **Kata**, **Requests** (badge), **Ready to grade**; Admin adds **Access** (badge for family link requests). The header button is **Sign in**, or initials + level (tap → name, level, Sign out).
+- **Kata** tab (Gary's choice): split into **Solo kata**, then **Multi-person kata**, then **Weapon kata** (then any other type), each grouped by expected belt (Learned at if set, else rank); the All / Solo / Multi-person / Weapon chips narrow it. Moderators see "N know"; members see their own status pill.
+- Moderators get the "Ready for X"/"N to go" badges, the "Still needs" panel and Learned at chips. Members never see readiness.
 - Ready to grade: every kata whose Learned at belt is at or below the member's belt must be Knows/Proficient. White and Black belts have no check. Empi Yonin Dori is ranked Purple but learned at Green.
 - Editing: member page → tap a status → pick one; kata page → tap Learning / Knows / Proficient (tap again to clear). Every change asks "are you sure", then shows Undo for 8 s. The kata page's "Still need it" list stays fixed while open so rows don't jump.
 - Opens instantly from the last copy (`kt.data`), then refreshes. Back button: screens and panels are history steps.
-- Lesson Planner link: `?kata=<name>&from=planner` opens that kata, asks for the password if locked, and shows "Back to the lesson plan" (closes the tab, else goes to the planner).
+- Lesson Planner link: `?kata=<name>&from=planner` opens that kata, asks a moderator to sign in if needed (stays on the kata after), and shows "Back to the lesson plan" (closes the tab, else goes to the planner).
+- Cached data (`kt.data`) is only reused for the same signed-in person, and signing out drops everything but the kata list. The old `kt.pin` is wiped on load.
 
 ## Changing things
 
@@ -46,4 +64,4 @@ Why two addresses: the page used to be served by Apps Script itself, but on phon
 - Hosting note: Gary's apps normally use Cloudflare Pages (Android won't install two apps from one site). This one went on GitHub Pages because the Claude extension can't open dash.cloudflare.com and Gary was away from his desktop. Pantry Pal is also on dailuo-source.github.io, so before making this an installable app, move it to Cloudflare Pages (project `ska-kata-tracker`, connect this repo, no build) and update `SITE_URL` in Code.gs and `KATA_SITE` in the Lesson Planner.
 - Code.gs: paste into the script project and redeploy (**Deploy → Manage deployments → pencil → New version**; the /exec URL stays the same). Through Claude in Chrome: open the project, set `monaco.editor.getModels()[0]` to the raw GitHub `Code.gs` (fetch by commit SHA), Ctrl+S, redeploy. Reading code out of Monaco needs chunks under ~1,000 characters with `=`/`;`/`&`/`?` swapped out, or the extension blocks the output.
 - Commits use author `Claude <noreply@anthropic.com>`.
-- Testing: Playwright with `script.google.com` routed to a mock that answers the three actions.
+- Testing (harness not in the repo, because its test data has real member names): `gasmock.js` (a Node stand-in for SpreadsheetApp/Utilities/etc. that runs the real Code.gs on data from the live sheet) plus Playwright with `script.google.com` routed to it, covering all three levels, the temporary password, the fallback route and the planner link.
