@@ -1,4 +1,9 @@
-# SKA Kata Tracker: handoff notes
+# SKA Kata Tracker — Brief
+
+> **Claude: read this first.** Open only the files a change touches, and use the code map below to jump to a function instead of reading whole files.
+> `index.html` is about 94 KB (~24k tokens): don't read it whole; search for a function name (e.g. `grep -n "function render" index.html`) and read just that function.
+> `Code.gs` is about 37 KB (~9k tokens): don't read it whole; search for a function name (e.g. `grep -n "function render" Code.gs`) and read just that function.
+> At the end of a work session, update **Status** and add one line to **Changelog** (keep about 10).
 
 Tracks which kata each member of **Scarborough Academy of Karate (SKA)** knows. Built to sit in the dojo's Wix site (already behind its members' sign-in) and to work on phones (Gary: Samsung Android, Chrome).
 
@@ -65,3 +70,35 @@ Why two addresses: the page used to be served by Apps Script itself, but on phon
 - Code.gs: paste into the script project and redeploy (**Deploy → Manage deployments → pencil → New version**; the /exec URL stays the same). Through Claude in Chrome: open the project, set `monaco.editor.getModels()[0]` to the raw GitHub `Code.gs` (fetch by commit SHA), Ctrl+S, redeploy. Reading code out of Monaco needs chunks under ~1,000 characters with `=`/`;`/`&`/`?` swapped out, or the extension blocks the output.
 - Commits use author `Claude <noreply@anthropic.com>`.
 - Testing (harness not in the repo, because its test data has real member names): `gasmock.js` (a Node stand-in for SpreadsheetApp/Utilities/etc. that runs the real Code.gs on data from the live sheet) plus Playwright with `script.google.com` routed to it, covering all three levels, the temporary password, the fallback route and the planner link.
+
+## Code map
+| File | Lines | What's in it |
+|---|---|---|
+| `Code.gs` | 899 | entry (`doGet`, `doPost`, `run_`, `dispatch_`); security (`sha256Hex_`, `hmacHex_`, `codeHash_`, `checkClock_`, `failGate_`, `newSession_`, `signIn_`, `session_`); temporary password (`passwordOn_`, `signInPassword_`, `setPassword_`); levels (`rank_`, `need_`, `isMod_`, `isAdmin_`, `visibleNames_`); actions (`getData_`, `requestChange_`, `withdrawRequest_`, `requestLink_`, `saveStatus_`, `decide_`, `undoDecision_`, `setLevel_`, `makeCode_`, `removeCode_`, `addPerson_`, `removeFamily_`); sheet reads (`readKata_`, `readMembers_`, `readProgress_`, `readAccess_`, `readRequests_`, `getSettings_`); `kataSummary_` (the planner's `?api=summary`); `syncProgress_`; menu (`onOpen`, `menuMakeCode_`, `menuSignOutAll_`); `clientLog_` |
+| `index.html` | 1463 | CSS (~14–206), markup (~208–225), one `<script>` (~226–1461) |
+
+Inside the `index.html` script, search for:
+- Transport: `request`, `call`, `viaFetch`, `viaScript`, `scriptGet`, `report`
+- Storage and loading: `store`/`recall`, `sstore`/`srecall`, `cacheData`, `load`, `applyLink`
+- Levels and tabs: `me`, `level`, `isMod`, `isAdmin`, `homeTab`, `tabList`, `render`, `renderHeader`, `renderTabs`, `go`
+- Belts and readiness: `belts`, `beltIndex`, `statusOf`, `stPill`, `expectedKata`, `readiness`, `stillNeed`
+- Members: `memberList`, `memberDetail`, `memberKataRow`, `myKata`
+- Kata: `kataList`, `kataGroups`, `kataDetail`, `catChips`
+- Requests: `openAsk`, `sendAsk`, `withdraw`, `openLink`, `requestsView`, `decideRequest`, `setProgress`
+- Ready to grade: `readyView`
+- Access (admin): `accessView`, `accessRows`, `openPerson`, `setLevel`, `makeCode`, `removeCode`, `openAddPerson`, `askPasswordOff`
+- Sign-in: `signInForm`, `submitSignIn`, `saveSession`, `signOut`, `openAccount`
+- Panels: `openSheet`, `closeSheet`, `openChooser`, `askChange`, `save`, `toast`; planner link `backToPlanner`
+
+## Status
+- Working: per-person access codes with Member / Moderator / Admin levels, requests and approvals, Ready to grade, fallback route for phones that never get fetch replies, Lesson Planner link.
+- Open: remove the TEMPORARY PASSWORD button and code once it's turned off; move to Cloudflare Pages before making it installable; later switch sign-in to the dojo website's.
+
+## Changelog (latest first, keep about 10 lines)
+- 2026-10-18: Turned the handoff notes into a brief (read-first rules, code map, status, changelog)
+- 2026-10-17: Switch to the script route when a fetch reply never arrives, and remember it
+- 2026-10-17: Save a new access code before showing it
+- 2026-10-17: Access levels: member codes, requests, moderators and admins
+- 2026-10-17: Fallback route when a phone can't read fetch replies from the sheet
+- 2026-10-17: Stay on the linked kata after unlocking
+- 2026-10-17: Host on GitHub Pages for now
