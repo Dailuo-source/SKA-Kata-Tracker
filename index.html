@@ -644,7 +644,7 @@ function homeTab() { return !session ? 'kata' : isMod() ? 'home' : 'mine'; }
 function tabList() {
   if (!session) return [];
   if (!isMod()) return [['mine', 'My kata', ICON.person], ['kata', 'Kata', ICON.book]];
-  var T = [['home', wide() ? 'Overview' : 'Home', ICON.home], ['members', 'Members', ICON.people], ['kata', 'Kata', ICON.book], ['grid', 'Grid', ICON.grid],
+  var T = [['members', 'Members', ICON.people], ['kata', 'Kata', ICON.book], ['grid', 'Grid', ICON.grid], ['home', 'Overview', ICON.home],
     ['requests', 'Requests', ICON.inbox], ['ready', 'Readiness', ICON.pulse]];
   if (isAdmin()) T.push(['access', 'Access', ICON.key]);
   return T;

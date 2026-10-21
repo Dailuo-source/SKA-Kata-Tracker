@@ -55,7 +55,7 @@ Why two addresses: the page used to be served by Apps Script itself, but on phon
 
 - Look (Gary's choices): same as the SKA Lesson Planner (red #C8102E header with the dojo logo, black secondary, M PLUS Rounded 1c + Nunito Sans) on a light grey page (#ECECEA) with white cards. No dark mode.
 - Two layouts from one page (`wide()` = window at least 900 px, e.g. inside the dojo's Wix page): phone = red header + bottom tabs; wide = slim white top bar with every screen, pages up to 1,240 px, and an "open in its own tab" button when inside a frame. Mock-ups: the "Kata Tracker desktop" Design canvas (desktop row and Phone row).
-- Tabs by level: signed out = Kata (sign-in card on top, no tab bar); Member = **My kata**, **Kata**; Moderator = **Home/Overview**, **Members**, **Kata**, **Grid**, **Readiness** in the bottom bar, with **Requests** as the speech-bubble header button (badge); Admin also gets **Access** (in the account panel on phones, in the top bar on wide screens; badge for family link requests).
+- Tabs by level: signed out = Kata (sign-in card on top, no tab bar); Member = **My kata**, **Kata**; Moderator = **Members**, **Kata**, **Grid**, **Overview**, **Readiness** in the bottom bar (Gary: the moderator/admin-only screens sit on the right; Overview is still where they land after signing in), with **Requests** as the speech-bubble header button (badge); Admin also gets **Access** (in the account panel on phones, in the top bar on wide screens; badge for family link requests).
 - **Overview**: active members, learning right now, kata learned this month (from `log`), requests waiting; members by belt; requests (wide only); currently learning (tap a kata to see who); recent changes. No readiness here (Gary: readiness lives only on Readiness).
 - **Members**: simple list (table on wide: belt, kata known, learning, last change), belt chips, sort (default belt highest first, then **last name**; also belt lowest first, last name, most kata known; remembered as `kt.msort`). A member opens beside the list on wide, as a page on phones: Learning/Knows/Proficient counts and their kata with status buttons (are you sure + Undo). No readiness here.
 - **Grid**: members × kata. Filters (collapsible on wide, a bottom sheet on phones; remembered as `kt.grid`): member name, belts, pick individuals, sort; kata name, Solo/Multi-person/Weapon, required for grading, belt by Learned at or Rank, arrange by section → family → belt (default) / section → belt / belt / kata list order. Family = name without the trailing Shodan/Nidan/…/Dai/Sho. Tap a square to step blank → L → K → P; edits are outlined until one **Save** (Undo after), Discard drops them.
@@ -100,6 +100,7 @@ Inside the `index.html` script, search for:
 - Open: remove the TEMPORARY PASSWORD button and code once it's turned off; move to Cloudflare Pages before making it installable; later switch sign-in to the dojo website's.
 
 ## Changelog (latest first, keep about 10 lines)
+- 2026-10-21: Home renamed Overview and moved right of Grid
 - 2026-10-21: Deployed version 13: the combined Code.gs (log, saveMany and the planner key)
 - 2026-10-21: Desktop/Wix layout; new Overview, Grid and Readiness screens; simpler Members sorted by belt then last name; Code.gs adds `log` and `saveMany` (deployed as version 12)
 - 2026-10-18: Turned the handoff notes into a brief (read-first rules, code map, status, changelog)
@@ -107,4 +108,3 @@ Inside the `index.html` script, search for:
 - 2026-10-17: Save a new access code before showing it
 - 2026-10-17: Access levels: member codes, requests, moderators and admins
 - 2026-10-17: Fallback route when a phone can't read fetch replies from the sheet
-- 2026-10-17: Stay on the linked kata after unlocking
