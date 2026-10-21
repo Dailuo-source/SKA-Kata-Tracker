@@ -100,6 +100,7 @@ Inside the `index.html` script, search for:
 - Open: remove the TEMPORARY PASSWORD button and code once it's turned off; move to Cloudflare Pages before making it installable; later switch sign-in to the dojo website's.
 
 ## Changelog (latest first, keep about 10 lines)
+- 2026-10-21: Deployed version 13: the combined Code.gs (log, saveMany and the planner key)
 - 2026-10-21: Desktop/Wix layout; new Overview, Grid and Readiness screens; simpler Members sorted by belt then last name; Code.gs adds `log` and `saveMany` (deployed as version 12)
 - 2026-10-18: Turned the handoff notes into a brief (read-first rules, code map, status, changelog)
 - 2026-10-17: Switch to the script route when a fetch reply never arrives, and remember it
@@ -107,4 +108,3 @@ Inside the `index.html` script, search for:
 - 2026-10-17: Access levels: member codes, requests, moderators and admins
 - 2026-10-17: Fallback route when a phone can't read fetch replies from the sheet
 - 2026-10-17: Stay on the linked kata after unlocking
-- 2026-10-17: Host on GitHub Pages for now
