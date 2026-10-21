@@ -1,8 +1,8 @@
 # SKA Kata Tracker — Brief
 
 > **Claude: read this first.** Open only the files a change touches, and use the code map below to jump to a function instead of reading whole files.
-> `index.html` is about 94 KB (~24k tokens): don't read it whole; search for a function name (e.g. `grep -n "function render" index.html`) and read just that function.
-> `Code.gs` is about 37 KB (~9k tokens): don't read it whole; search for a function name (e.g. `grep -n "function render" Code.gs`) and read just that function.
+> `index.html` is about 150 KB (~38k tokens): don't read it whole; search for a function name (e.g. `grep -n "function render" index.html`) and read just that function.
+> `Code.gs` is about 38 KB (~10k tokens): don't read it whole; search for a function name (e.g. `grep -n "function render" Code.gs`) and read just that function.
 > At the end of a work session, update **Status** and add one line to **Changelog** (keep about 10).
 
 Tracks which kata each member of **Scarborough Academy of Karate (SKA)** knows. Built to sit in the dojo's Wix site (already behind its members' sign-in) and to work on phones (Gary: Samsung Android, Chrome).
@@ -13,7 +13,7 @@ Tracks which kata each member of **Scarborough Academy of Karate (SKA)** knows. 
 | --- | --- |
 | Signed out | The dojo's kata list only (no names, no counts) |
 | **Member** | Their own kata (and family members an admin has linked); taps a kata to **ask** for Learning / Knows / Proficient with an optional note; can withdraw; asks to link a family member. Never sees others, readiness or Ready to grade |
-| **Moderator** | Everyone's kata, changes statuses (are you sure + Undo), **Requests** tab to approve/decline (Undo), Ready to grade ("for now"; Gary may revoke it) |
+| **Moderator** | Overview, Members, Kata, Grid, Requests (approve/decline with Undo), Readiness ("for now"; Gary may revoke it); changes statuses (are you sure + Undo, or the Grid's one Save + Undo) |
 | **Admin** | Everything, plus the **Access** tab: set levels, make/remove access codes, approve family links (admins only), remove links, add people not on the member list (instructors, parents), turn off the temporary password |
 
 - Sign-in is a personal **access code** for now (6 characters like `K7P-4QX`, no 0/O/1/I/L). Gary later wants to use the dojo website's sign-in instead. A code is shown once when made; only `SHA-256("ska-kata:" + CODE)` is stored. Making a new code or removing it signs that person out everywhere. Sheet menu **Kata Tracker → Make an access code…** also makes one (that's how the first admin was made). **Sign everyone out** rotates `TOKEN_SECRET`.
@@ -36,7 +36,7 @@ Why two addresses: the page used to be served by Apps Script itself, but on phon
   - `signIn`: `h` = SHA-256(`t:` + SHA-256(`ska-kata:` + CODE)) → `{p, k, name, level}`. `p` is the session (name, code check, 400-day expiry, base64), `k` = HMAC of `p` with `TOKEN_SECRET`, kept on the phone (`kt.session`, or sessionStorage if "Keep me signed in" is off).
   - Signed calls send `p` and `h` = SHA-256(`t:k:action:a`), so no code, password or key is ever in an address. The level is read fresh from the Access tab on every call. Errors starting `SIGNED_OUT:` make the page sign out.
   - `getData` (signed out or in): only what that level may see (see the table). Members get `members`/`progress` for themselves and linked family, `myRequests`, `myLinks`; moderators also `requests`, `recent`; admins also `linkRequests`, `access`, `sheetUrl`.
-  - Member: `requestChange(member, kata, to, note)`, `withdrawRequest(id)`, `requestLink(name)`. Moderator: `saveStatus(member, kata, status)`, `decide(id, 'Approved'|'Declined')`, `undoDecision(id)`. Admin: `setLevel`, `makeCode`, `removeCode`, `addPerson`, `removeFamily`, `setPassword(false)`.
+  - Member: `requestChange(member, kata, to, note)`, `withdrawRequest(id)`, `requestLink(name)`. Moderator: `saveStatus(member, kata, status)`, `saveMany([[member, kata, status], …])` (up to 40; the page sends 15 at a time and falls back to `saveStatus` if the script is older), `decide(id, 'Approved'|'Declined')`, `undoDecision(id)`. Admin: `setLevel`, `makeCode`, `removeCode`, `addPerson`, `removeFamily`, `setPassword(false)`.
   - 10 wrong codes/passwords pause sign-in for 15 min. `clientLog` (sent by `sendBeacon`) writes what failed to the Executions log (look for "Kata Tracker page problem").
 - `GET ?api=summary`: every kata with rank belt, Learned at belt and how many active members still need it (counts only). Used by the SKA Lesson Planner.
 
@@ -53,11 +53,13 @@ Why two addresses: the page used to be served by Apps Script itself, but on phon
 ## App (`index.html`, one file)
 
 - Look (Gary's choices): same as the SKA Lesson Planner (red #C8102E header with the dojo logo, black secondary, M PLUS Rounded 1c + Nunito Sans) on a light grey page (#ECECEA) with white cards. No dark mode.
-- Tabs by level: signed out = Kata (with the sign-in card on top, no tab bar); Member = **My kata**, **Kata**; Moderator = **Members**, **Kata**, **Requests** (badge), **Ready to grade**; Admin adds **Access** (badge for family link requests). The header button is **Sign in**, or initials + level (tap → name, level, Sign out).
-- **Kata** tab (Gary's choice): split into **Solo kata**, then **Multi-person kata**, then **Weapon kata** (then any other type), each grouped by expected belt (Learned at if set, else rank); the All / Solo / Multi-person / Weapon chips narrow it. Moderators see "N know"; members see their own status pill.
-- Moderators get the "Ready for X"/"N to go" badges, the "Still needs" panel and Learned at chips. Members never see readiness.
-- Ready to grade: every kata whose Learned at belt is at or below the member's belt must be Knows/Proficient. White and Black belts have no check. Empi Yonin Dori is ranked Purple but learned at Green.
-- Editing: member page → tap a status → pick one; kata page → tap Learning / Knows / Proficient (tap again to clear). Every change asks "are you sure", then shows Undo for 8 s. The kata page's "Still need it" list stays fixed while open so rows don't jump.
+- Two layouts from one page (`wide()` = window at least 900 px, e.g. inside the dojo's Wix page): phone = red header + bottom tabs; wide = slim white top bar with every screen, pages up to 1,240 px, and an "open in its own tab" button when inside a frame. Mock-ups: the "Kata Tracker desktop" Design canvas (desktop row and Phone row).
+- Tabs by level: signed out = Kata (sign-in card on top, no tab bar); Member = **My kata**, **Kata**; Moderator = **Home/Overview**, **Members**, **Kata**, **Grid**, **Readiness** in the bottom bar, with **Requests** as the speech-bubble header button (badge); Admin also gets **Access** (in the account panel on phones, in the top bar on wide screens; badge for family link requests).
+- **Overview**: active members, learning right now, kata learned this month (from `log`), requests waiting; members by belt; requests (wide only); currently learning (tap a kata to see who); recent changes. No readiness here (Gary: readiness lives only on Readiness).
+- **Members**: simple list (table on wide: belt, kata known, learning, last change), belt chips, sort (default belt highest first, then **last name**; also belt lowest first, last name, most kata known; remembered as `kt.msort`). A member opens beside the list on wide, as a page on phones: Learning/Knows/Proficient counts and their kata with status buttons (are you sure + Undo). No readiness here.
+- **Grid**: members × kata. Filters (collapsible on wide, a bottom sheet on phones; remembered as `kt.grid`): member name, belts, pick individuals, sort; kata name, Solo/Multi-person/Weapon, required for grading, belt by Learned at or Rank, arrange by section → family → belt (default) / section → belt / belt / kata list order. Family = name without the trailing Shodan/Nidan/…/Dai/Sho. Tap a square to step blank → L → K → P; edits are outlined until one **Save** (Undo after), Discard drops them.
+- **Readiness** (was "Ready to grade"): three status tiles (ready / one kata away / still working), by belt, kata to focus on, and members grouped by status with their missing kata as chips; tiles, belts and kata all filter the list. Every kata whose Learned at belt is at or below the member's belt must be Knows/Proficient. White and Black belts have no check. Empi Yonin Dori is ranked Purple but learned at Green.
+- **Kata** tab (Gary's choice): split into **Solo kata**, then **Multi-person kata**, then **Weapon kata** (then any other type), each grouped by expected belt (Learned at if set, else rank); the chips narrow it. Moderators see "N know"; members see their own status pill. Kata page: tap Learning / Knows / Proficient (tap again to clear); the "Still need it" list stays fixed while open.
 - Opens instantly from the last copy (`kt.data`), then refreshes. Back button: screens and panels are history steps.
 - Lesson Planner link: `?kata=<name>&from=planner` opens that kata, asks a moderator to sign in if needed (stays on the kata after), and shows "Back to the lesson plan" (closes the tab, else goes to the planner).
 - Cached data (`kt.data`) is only reused for the same signed-in person, and signing out drops everything but the kata list. The old `kt.pin` is wiped on load.
@@ -74,27 +76,30 @@ Why two addresses: the page used to be served by Apps Script itself, but on phon
 ## Code map
 | File | Lines | What's in it |
 |---|---|---|
-| `Code.gs` | 899 | entry (`doGet`, `doPost`, `run_`, `dispatch_`); security (`sha256Hex_`, `hmacHex_`, `codeHash_`, `checkClock_`, `failGate_`, `newSession_`, `signIn_`, `session_`); temporary password (`passwordOn_`, `signInPassword_`, `setPassword_`); levels (`rank_`, `need_`, `isMod_`, `isAdmin_`, `visibleNames_`); actions (`getData_`, `requestChange_`, `withdrawRequest_`, `requestLink_`, `saveStatus_`, `decide_`, `undoDecision_`, `setLevel_`, `makeCode_`, `removeCode_`, `addPerson_`, `removeFamily_`); sheet reads (`readKata_`, `readMembers_`, `readProgress_`, `readAccess_`, `readRequests_`, `getSettings_`); `kataSummary_` (the planner's `?api=summary`); `syncProgress_`; menu (`onOpen`, `menuMakeCode_`, `menuSignOutAll_`); `clientLog_` |
-| `index.html` | 1463 | CSS (~14–206), markup (~208–225), one `<script>` (~226–1461) |
+| `Code.gs` | 930 | entry (`doGet`, `doPost`, `run_`, `dispatch_`); security (`sha256Hex_`, `hmacHex_`, `codeHash_`, `checkClock_`, `failGate_`, `newSession_`, `signIn_`, `session_`); temporary password (`passwordOn_`, `signInPassword_`, `setPassword_`); levels (`rank_`, `need_`, `isMod_`, `isAdmin_`, `visibleNames_`); actions (`getData_`, `requestChange_`, `withdrawRequest_`, `requestLink_`, `saveStatus_`, `saveMany_`, `decide_`, `undoDecision_`, `setLevel_`, `makeCode_`, `removeCode_`, `addPerson_`, `removeFamily_`); sheet reads (`readLog_`, `readKata_`, `readMembers_`, `readProgress_`, `readAccess_`, `readRequests_`, `getSettings_`); `kataSummary_` (the planner's `?api=summary`); `syncProgress_`; menu (`onOpen`, `menuMakeCode_`, `menuSignOutAll_`); `clientLog_` |
+| `index.html` | 2171 | CSS (~14–400), markup (~402–421), one `<script>` (~422–2169) |
 
 Inside the `index.html` script, search for:
 - Transport: `request`, `call`, `viaFetch`, `viaScript`, `scriptGet`, `report`
 - Storage and loading: `store`/`recall`, `sstore`/`srecall`, `cacheData`, `load`, `applyLink`
-- Levels and tabs: `me`, `level`, `isMod`, `isAdmin`, `homeTab`, `tabList`, `render`, `renderHeader`, `renderTabs`, `go`
+- Levels and tabs: `me`, `level`, `isMod`, `isAdmin`, `homeTab`, `tabList`, `barTabs`, `wide`, `render`, `renderHeader`, `renderNav`, `renderTabs`, `go`
 - Belts and readiness: `belts`, `beltIndex`, `statusOf`, `stPill`, `expectedKata`, `readiness`, `stillNeed`
-- Members: `memberList`, `memberDetail`, `memberKataRow`, `myKata`
+- Overview: `homeView`, `stat`
+- Members: `membersView`, `memberRows`, `memberPanel`, `openMember`, `sortMembers`, `tally`; members' own: `memberDetail`, `memberKataRow`, `myKata`
+- Grid: `gridView`, `gFilters`, `gBody`, `gLists`, `family`, `gStep`, `gSave`, `saveBatch`, `gRefresh`, `gChanged`
 - Kata: `kataList`, `kataGroups`, `kataDetail`, `catChips`
 - Requests: `openAsk`, `sendAsk`, `withdraw`, `openLink`, `requestsView`, `decideRequest`, `setProgress`
-- Ready to grade: `readyView`
+- Readiness: `readyView`
 - Access (admin): `accessView`, `accessRows`, `openPerson`, `setLevel`, `makeCode`, `removeCode`, `openAddPerson`, `askPasswordOff`
 - Sign-in: `signInForm`, `submitSignIn`, `saveSession`, `signOut`, `openAccount`
 - Panels: `openSheet`, `closeSheet`, `openChooser`, `askChange`, `save`, `toast`; planner link `backToPlanner`
 
 ## Status
-- Working: per-person access codes with Member / Moderator / Admin levels, requests and approvals, Ready to grade, fallback route for phones that never get fetch replies, Lesson Planner link.
-- Open: remove the TEMPORARY PASSWORD button and code once it's turned off; move to Cloudflare Pages before making it installable; later switch sign-in to the dojo website's.
+- Working: desktop/Wix layout and the new Overview, Members, Grid and Readiness screens; per-person access codes with Member / Moderator / Admin levels, requests and approvals, Ready to grade, fallback route for phones that never get fetch replies, Lesson Planner link.
+- Open: paste the new Code.gs into the script and redeploy if not done (Overview's recent changes/this month and the Grid's one-call save need it; the page works without it); remove the TEMPORARY PASSWORD button and code once it's turned off; move to Cloudflare Pages before making it installable; later switch sign-in to the dojo website's.
 
 ## Changelog (latest first, keep about 10 lines)
+- 2026-10-21: Desktop/Wix layout; new Overview, Grid and Readiness screens; simpler Members sorted by belt then last name; Code.gs adds `log` and `saveMany`
 - 2026-10-18: Turned the handoff notes into a brief (read-first rules, code map, status, changelog)
 - 2026-10-17: Switch to the script route when a fetch reply never arrives, and remember it
 - 2026-10-17: Save a new access code before showing it

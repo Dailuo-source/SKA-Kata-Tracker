@@ -203,13 +203,209 @@ textarea.inp{height:auto;padding:10px 14px;resize:none;font-size:15px;line-heigh
 .opt[aria-pressed=true]{border:3px solid var(--red);background:var(--red-tint)}
 .frow{display:flex;align-items:center;gap:10px;min-height:44px;font-size:14px;font-weight:700}
 .frow .btn{flex:none;min-height:40px;padding:0 14px;font-size:13.5px}
+
+/* Tap feedback */
+button,a{transition:transform .08s ease,filter .12s ease}
+button:active:not(:disabled),a:active{transform:scale(.96);filter:brightness(.92)}
+.hbtn,.acct{position:relative}
+.acct.compact{padding:0 3px}
+.hbadge{position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#fff;color:var(--red);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.chip{display:inline-flex;align-items:center;gap:7px}
+.chip .cnt{font-size:11.5px;padding:1px 7px;border-radius:9px;background:#F0F0F0;color:var(--muted)}
+.chip[aria-pressed=true] .cnt{background:#3A3A3A;color:#fff}
+.chips.scroll{flex-wrap:nowrap;overflow-x:auto;margin:0 -16px;padding:0 16px 2px}
+.chips.scroll .chip{flex:none}
+
+/* Wide screens (a computer, or inside the dojo's Wix page): a slim top bar instead of the
+   red header and bottom tabs, and pages up to 1,240 px wide. */
+.dnav{display:none}
+body.wide .top,body.wide .tabs{display:none}
+body.wide .dnav{display:flex;position:sticky;top:0;z-index:20;background:#fff;border-bottom:1.5px solid var(--line);padding:10px 20px;align-items:center;gap:4px;flex-wrap:wrap}
+.dnav .b2{font-family:var(--f-d);font-size:17px;font-weight:800;margin-right:12px;display:flex;align-items:center;gap:8px}
+.dnav .b2 i{width:10px;height:22px;border-radius:3px;background:var(--red)}
+.dnav .nl{height:40px;padding:0 14px;border-radius:20px;border:0;background:none;font-size:15px;font-weight:800;color:var(--ink);display:inline-flex;align-items:center;gap:6px}
+.dnav .nl[aria-current=page]{background:var(--red);color:#fff}
+.dnav .nb{font-size:11px;padding:1px 7px;border-radius:10px;background:var(--red);color:#fff}
+.dnav .nl[aria-current=page] .nb{background:#fff;color:var(--red)}
+.dnav .sp{flex:1 1 8px}
+.dnav .ib{width:40px;height:40px;border-radius:20px;border:1.5px solid var(--line2);background:#fff;display:inline-flex;align-items:center;justify-content:center;color:var(--ink)}
+.dnav .ib svg{width:18px;height:18px}
+.dnav .a2{height:40px;padding:0 12px 0 4px;border-radius:20px;border:1.5px solid var(--line2);background:#fff;font-size:13px;font-weight:800;display:inline-flex;align-items:center;gap:8px}
+.dnav .a2 .ini{width:30px;height:30px;border-radius:15px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px}
+.dnav .a2.out{padding:0 14px;background:var(--red);border-color:var(--red);color:#fff}
+body.wide main{padding:22px 20px 40px}
+body.wide main.full{max-width:1240px}
+body.wide .float{bottom:22px}
+body.wide .chips.scroll{flex-wrap:wrap;overflow:visible;margin:0;padding:0}
+
+/* Overview, Members, Grid and Readiness */
+.pg-h{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.pg-h>.grow{flex:1 1 220px}
+.tilesx{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+body.wide .tilesx{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.stat{background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:1px;text-align:left;color:var(--ink)}
+.stat .l{font-size:12.5px;font-weight:700;color:var(--muted)}
+.stat b{font-family:var(--f-d);font-size:24px;font-weight:800;line-height:1.2}
+.stat .s{font-size:12.5px;font-weight:700;color:var(--muted)}
+.cols{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
+.cols>.mainc{flex:999 1 520px;min-width:0}
+.cols>.side{flex:1 1 320px;min-width:0}
+.cols>.half{flex:1 1 380px;min-width:0}
+.ct{margin:0;font-family:var(--f-d);font-size:17px;font-weight:800;line-height:1.25}
+.cardx{background:#fff;border:1.5px solid var(--line);border-radius:20px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.cardx .hd{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.cardx .hd .ct{flex:1}
+.hbar{display:grid;grid-template-columns:84px minmax(0,1fr) 34px;align-items:center;gap:10px}
+.hbar .t{display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px}
+.hbar .trk{height:18px}
+.hbar .trk i{display:block;height:100%;border-radius:6px;box-shadow:inset 0 0 0 1.5px rgba(0,0,0,.18);min-width:4px}
+.hbar .n{font-size:13px;font-weight:800;text-align:right}
+.lrow{display:grid;grid-template-columns:minmax(0,1fr) 90px 24px;align-items:center;gap:10px;width:100%;min-height:48px;padding:4px 0;border:0;border-top:1px solid #EFEFEF;background:none;text-align:left}
+.lrow .n{font-weight:800;display:block}.lrow .s{display:block;font-size:12px;font-weight:700;color:var(--muted)}
+.mbar{display:block;height:8px;border-radius:4px;background:#EFEFEF;overflow:hidden}.mbar i{display:block;height:100%;border-radius:4px}
+.ppl{display:flex;flex-wrap:wrap;gap:6px;padding:0 0 10px}
+.ppl span{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;padding:4px 10px;border-radius:12px}
+.segx{display:inline-flex;flex-wrap:wrap;gap:2px;background:#F2F2F0;border-radius:18px;padding:3px}
+.segx button{min-height:34px;padding:0 12px;border-radius:15px;border:0;background:transparent;font-size:13px;font-weight:800;color:var(--muted)}
+.segx button[aria-pressed=true]{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.18)}
+.logrow{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #EFEFEF}
+.logrow .grow .n{font-weight:800;display:block}.logrow .grow .s{display:block;font-size:12px;font-weight:700;color:var(--muted)}
+.rq{border-radius:14px;padding:12px 14px;background:var(--red-tint);display:flex;flex-direction:column;gap:8px}
+.rq .btnrow .btn{min-height:40px;font-size:14px}
+.bigbtn{min-height:48px;padding:0 18px;border-radius:24px;border:0;background:var(--red);color:#fff;font-size:15px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.bigbtn svg{width:18px;height:18px}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{text-align:left;font-size:12px;font-weight:800;color:var(--muted);padding:12px 8px}
+.tbl td{padding:10px 8px;border-top:1px solid #EFEFEF}
+.tbl th:first-child,.tbl td:first-child{padding-left:16px}
+.tbl th:last-child,.tbl td:last-child{padding-right:16px}
+.tbl .r{text-align:right}
+.tbl tbody tr{cursor:pointer}
+.tbl tbody tr:hover td{background:#FAFAFA}
+.tbl tr.sel td{background:var(--red-tint)}
+.tbl tr.sel td:first-child{box-shadow:inset 4px 0 0 var(--red)}
+.tbl .mrow{border:0;background:none;padding:0;font-weight:800;text-align:left;font-size:14.5px}
+.tbl .kn{font-family:var(--f-d);font-size:17px;font-weight:800}
+.lp{font-size:12px;font-weight:800;padding:3px 9px;border-radius:11px;background:#FCEBDD;color:#8A3F0C;white-space:nowrap}
+.mlist{background:#fff;border:1.5px solid var(--line);border-radius:20px;overflow:hidden}
+.mrow2{width:100%;display:flex;align-items:center;gap:12px;min-height:60px;padding:8px 14px;border:0;border-top:1px solid #EFEFEF;background:#fff;text-align:left}
+.mrow2:first-child{border-top:0}
+.mrow2 .grow .n{font-weight:800;display:block}.mrow2 .grow .s{display:block;font-size:12.5px;font-weight:700;color:var(--muted)}
+.mrow2 svg.go{width:18px;height:18px;color:#9A9A9A}
+.mpanel{background:#fff;border:1.5px solid var(--line);border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:14px}
+body.wide .mpanel{position:sticky;top:78px;max-height:calc(100vh - 100px);overflow:auto}
+.badge2{width:56px;height:56px;border-radius:28px;flex:none;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;box-shadow:inset 0 0 0 1.5px rgba(0,0,0,.18)}
+.krow2{display:flex;flex-direction:column;gap:8px;padding:10px 0;border-top:1px solid #EFEFEF}
+.krow2 .n{font-weight:800;display:block}.krow2 .s{display:block;font-size:12px;font-weight:700;color:var(--muted)}
+.krow2 .seg button{min-height:40px;font-size:13px}
+body.wide .krow2{flex-direction:row;flex-wrap:wrap;align-items:center}
+body.wide .krow2>.grow{flex:1 1 140px}
+body.wide .krow2 .seg{flex:0 0 auto;display:flex;gap:4px}
+body.wide .krow2 .seg button{min-height:34px;padding:0 10px;border-radius:17px;font-size:12.5px}
+
+/* Progress grid */
+.legend{display:flex;flex-wrap:wrap;gap:10px;font-size:12.5px;font-weight:800}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:22px;height:22px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:12px}
+.fpanel{display:flex;flex-direction:column;gap:12px}
+.frow2{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.flabel{font-size:12.5px;font-weight:800;color:var(--muted)}
+body.wide .flabel.side{width:72px;color:var(--ink2);font-size:13px}
+body.wide .frow2.ind{padding-left:80px}
+.fhead{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.fbtn{min-height:38px;padding:0 14px 0 10px;border-radius:19px;border:0;background:#F2F2F0;font-size:14px;font-weight:800;display:inline-flex;align-items:center;gap:8px}
+.fbtn svg{width:16px;height:16px;transition:transform .15s}
+.fbtn[aria-expanded=false] svg{transform:rotate(-90deg)}
+.fsum{flex:1 1 240px;font-size:13px;font-weight:700;color:var(--muted)}
+.ftags{display:flex;gap:6px;overflow-x:auto;margin:0 -16px;padding:0 16px}
+.ftags span{flex:none;font-size:12px;font-weight:800;padding:5px 10px;border-radius:12px;background:#fff;border:1.5px solid var(--line);white-space:nowrap}
+.fsearch{display:flex;align-items:center;gap:8px;height:40px;padding:0 12px;border-radius:20px;background:#F5F5F5;border:1.5px solid var(--line);flex:0 1 200px}
+.fsearch svg{width:16px;height:16px;color:var(--muted)}
+.fsearch input{flex:1;min-width:0;border:0;outline:none;background:transparent;font-size:15px;font-weight:700}
+.picklist{border:1.5px solid var(--line);border-radius:16px;padding:8px;display:flex;flex-wrap:wrap;gap:6px;background:#FAFAFA}
+.gwrap{overflow:auto;background:#fff;border:1.5px solid var(--line);border-radius:18px;max-height:calc(100vh - 300px);min-height:280px}
+body.wide .gwrap{max-height:600px}
+.gt{border-collapse:separate;border-spacing:0;font-size:13px;min-width:100%}
+.gt th,.gt td{background:#fff}
+.gt .gh{position:sticky;z-index:2;height:28px;box-sizing:border-box;text-align:left;padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:1px;font-size:12px;font-weight:800}
+.gt .gh.gsec{background:#F2F2F0;border-left:2px solid #fff}
+.gt .gh.gfam{color:var(--ink2);border-left:1px solid var(--line);border-bottom:1px solid #EFEFEF}
+.gt .gh.gblt{border-left:1px solid var(--line)}
+.gt .corner{position:sticky;left:0;z-index:3;height:28px;box-sizing:border-box}
+.gt .kh{position:sticky;z-index:2;padding:0 3px 8px;font-size:11.5px;font-weight:800;text-align:center;width:74px;min-width:74px;border-bottom:1.5px solid var(--line);vertical-align:bottom}
+.gt .kh .strip{position:absolute;left:0;right:0;top:0;height:5px;box-shadow:inset 0 -1px 0 rgba(0,0,0,.15)}
+.gt .kh .kn{display:block;line-height:1.2;margin-top:10px}
+.gt .kh .km{display:block;color:var(--muted);font-weight:700;margin-top:2px}
+.gt .mh{position:sticky;left:0;z-index:3;text-align:left;padding:8px 10px;font-size:11.5px;font-weight:800;color:var(--muted);border-bottom:1.5px solid var(--line);vertical-align:bottom;box-shadow:1px 0 0 var(--line)}
+.gt .rh{position:sticky;left:0;z-index:1;text-align:left;padding:4px 10px;border-top:1px solid #EFEFEF;white-space:nowrap;box-shadow:1px 0 0 var(--line)}
+.gt .rh span{display:flex;align-items:center;gap:7px;font-weight:800;max-width:150px;overflow:hidden;text-overflow:ellipsis}
+.gt td{padding:4px 3px;text-align:center;border-top:1px solid #EFEFEF}
+.gt .e1{border-left:2px solid var(--line)}
+.gt .e2{border-left:1px solid #EFEFEF}
+.gt .tot{padding:4px 14px;text-align:right;font-weight:800;color:var(--ink2);white-space:nowrap}
+.gt .toth{position:sticky;z-index:2;padding:8px 14px;font-size:11.5px;font-weight:800;color:var(--muted);text-align:right;border-bottom:1.5px solid var(--line);vertical-align:bottom}
+.cell{width:44px;height:38px;border-radius:10px;font-size:14px;font-weight:800;border:1.5px solid transparent;padding:0}
+.cell.sx{background:#fff;color:#9A9A9A;border:1.5px dashed #C9C9C9}
+.cell.s0{background:#FCEBDD;color:#8A3F0C}
+.cell.s1{background:#E3EBFB;color:#1F4BA5}
+.cell.s2{background:var(--ink);color:#fff}
+.cell.ed{box-shadow:0 0 0 2.5px var(--red)}
+.savebar{display:flex;align-items:center;gap:8px;background:var(--ink);color:#fff;border-radius:16px;padding:8px 8px 8px 14px}
+.savebar .m{flex:1;font-size:13.5px;font-weight:700}
+.savebar .btn{flex:none;min-height:40px;padding:0 14px;font-size:13.5px}
+.savebar .btn.ghost{background:transparent;border-color:#5E5E5E;color:#fff}
+
+/* Readiness */
+.rtiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+body.wide .rtiles{gap:12px}
+.rtile{min-height:84px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;text-align:left;border-radius:16px;padding:10px 12px;background:#fff;border:2px solid var(--line);color:var(--ink)}
+.rtile b{font-family:var(--f-d);font-size:26px;font-weight:800;line-height:1.1}
+.rtile span{font-size:12.5px;font-weight:800;line-height:1.2}
+.rtile small{display:none;font-size:12.5px;font-weight:700;opacity:.85}
+body.wide .rtile{padding:14px 18px}
+body.wide .rtile b{font-size:34px}
+body.wide .rtile small{display:block}
+.rtile.ready{background:var(--red);border-color:var(--red);color:#fff}
+.rtile[aria-pressed=true]{border-color:var(--ink)}
+.rtiles.picked .rtile[aria-pressed=false]{opacity:.55}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block;flex:none}
+.rgrp{display:flex;align-items:center;gap:8px;padding:10px 0 4px;font-size:13.5px;font-weight:800;color:var(--ink2)}
+.rgrp .c{color:var(--muted)}
+.rrow{display:grid;grid-template-columns:minmax(150px,1.1fr) 92px minmax(0,2fr);align-items:center;gap:12px;padding:9px 0;border-top:1px solid #EFEFEF}
+body:not(.wide) .rrow{grid-template-columns:minmax(0,1fr) 76px;gap:8px 10px}
+body:not(.wide) .rrow .miss{grid-column:1/-1;padding-left:22px}
+.rrow .who{display:flex;flex-direction:column;gap:1px;min-width:0}
+.rrow .who button{border:0;background:none;padding:0;text-align:left;font-weight:800;font-size:15px;display:inline-flex;align-items:center;gap:8px}
+.rrow .who .s{font-size:12px;font-weight:700;color:var(--muted);padding-left:22px}
+.rrow .pr{display:flex;flex-direction:column;gap:4px;font-size:12.5px;font-weight:800}
+.rrow .pr .mbar{height:6px}
+.miss{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px;font-weight:800;color:var(--ink2)}
+.mchip{min-height:30px;padding:0 10px;border-radius:15px;border:0;background:var(--red-soft);color:#8E0B21;font-size:12.5px;font-weight:800}
+.bbtn{display:flex;align-items:center;gap:10px;width:100%;height:40px;padding:0 10px;border-radius:12px;border:0;background:transparent}
+.bbtn[aria-pressed=true]{background:#F0F0F0;box-shadow:inset 0 0 0 2px var(--ink)}
+.bbtn .t{display:inline-flex;align-items:center;gap:8px;font-weight:800;width:80px}
+.bbtn .trk{flex:1;display:flex;gap:2px;height:14px}
+.bbtn .trk i{display:block;height:100%;border-radius:3px}
+.bbtn .n{font-size:12.5px;font-weight:800;width:44px;text-align:right}
+.nbtn{display:flex;align-items:center;gap:10px;width:100%;min-height:46px;padding:4px 10px;border-radius:12px;border:0;background:transparent;text-align:left}
+.nbtn[aria-pressed=true]{background:var(--red-tint);box-shadow:inset 0 0 0 2px var(--red)}
+.nbtn .grow .n{font-weight:800;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nbtn .grow .s{display:block;font-size:11.5px;font-weight:700;color:var(--muted)}
+.nbtn .mbar{width:70px;flex:none}
+.foldbtn{width:100%;min-height:48px;display:flex;align-items:center;gap:8px;border:0;background:transparent;padding:0;text-align:left}
+.foldbtn svg{width:18px;height:18px;transition:transform .15s}
+.foldbtn[aria-expanded=true] svg{transform:rotate(180deg)}
+.ftag{min-height:32px;padding:0 8px 0 12px;border-radius:16px;border:0;background:var(--ink);color:#fff;font-size:12.5px;font-weight:800;display:inline-flex;align-items:center;gap:6px}
+.ftag svg{width:13px;height:13px}
 </style>
 </head>
 <body>
+<nav class="dnav" id="dnav" aria-label="Sections"></nav>
 <header class="top">
   <div class="top-in">
     <img class="logo" alt="Scarborough Academy of Karate" src="logo-96.png">
     <div class="brand"><b>SKA Kata Tracker</b><small id="dojoName">Loading…</small></div>
+    <button class="hbtn icon" id="reqBtn" type="button" data-goto="requests" hidden></button>
     <button class="hbtn" id="acctBtn" type="button"></button>
   </div>
 </header>
@@ -237,7 +433,7 @@ var CATEGORIES = ['All', 'Solo', 'Multi-person', 'Weapon'];
 var LEVELS = ['Member', 'Moderator', 'Admin'];
 var LEVEL_HINT = {
   Member: 'Sees only their own kata (and approved family members’). Can ask for changes.',
-  Moderator: 'Approves requests, sees who knows every kata, changes anyone’s kata, and sees Ready to grade.',
+  Moderator: 'Approves requests, sees who knows every kata, changes anyone’s kata, and sees Readiness.',
   Admin: 'Everything a moderator can do, plus access levels, codes and family links.'
 };
 
@@ -249,7 +445,7 @@ var LEVEL_HINT = {
  */
 var state = {
   data: null,
-  tab: 'kata',             // mine | members | kata | requests | ready | access
+  tab: 'kata',             // home | mine | members | kata | grid | requests | ready | access
   member: null,            // open member's name (Members tab)
   kata: null,              // open kata's name
   who: null,               // the person shown on My kata (self or a linked family member)
@@ -259,7 +455,6 @@ var state = {
   collapsed: {},           // belt name -> true when its group is folded
   kataView: 'need',        // moderator list on a kata: need | all
   showNotStarted: false,
-  readyBelt: 'All',
   accessFilter: 'All',
   fromPlanner: false,
   pwMode: false,           // sign-in form showing the temporary password
@@ -293,7 +488,14 @@ var ICON = {
   info: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/>', 2.2),
   clock: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', 2.2),
   plus: svg('<path d="M12 5v14M5 12h14"/>', 2.4),
-  arrow: svg('<path d="M5 12h14M13 6l6 6-6 6"/>', 2.6)
+  arrow: svg('<path d="M5 12h14M13 6l6 6-6 6"/>', 2.6),
+  home: svg('<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>'),
+  grid: svg('<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/>'),
+  pulse: svg('<path d="M3 12h4l2 4 4-9 2 5h6"/>'),
+  msg: svg('<path d="M4 5h16v11H9l-5 4z"/>', 2.2),
+  ext: svg('<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>', 2.2),
+  filter: svg('<path d="M4 6h16M7 12h10M10 18h4"/>', 2.4),
+  x: svg('<path d="M6 6l12 12M18 6L6 18"/>', 2.8)
 };
 
 /* ---------- server calls ---------- */
@@ -437,14 +639,25 @@ function me() { return state.data && state.data.me; }
 function level() { var m = me(); return m ? m.level : (session ? session.level : ''); }
 function isMod() { var l = level(); return l === 'Moderator' || l === 'Admin'; }
 function isAdmin() { return level() === 'Admin'; }
-function homeTab() { return !session ? 'kata' : isMod() ? 'members' : 'mine'; }
+function homeTab() { return !session ? 'kata' : isMod() ? 'home' : 'mine'; }
+/** Every screen this person may open, in the order the wide top bar shows them. */
 function tabList() {
   if (!session) return [];
   if (!isMod()) return [['mine', 'My kata', ICON.person], ['kata', 'Kata', ICON.book]];
-  var T = [['members', 'Members', ICON.people], ['kata', 'Kata', ICON.book], ['requests', 'Requests', ICON.inbox], ['ready', isAdmin() ? 'Ready' : 'Ready to grade', ICON.trophy]];
+  var T = [['home', wide() ? 'Overview' : 'Home', ICON.home], ['members', 'Members', ICON.people], ['kata', 'Kata', ICON.book], ['grid', 'Grid', ICON.grid],
+    ['requests', 'Requests', ICON.inbox], ['ready', 'Readiness', ICON.pulse]];
   if (isAdmin()) T.push(['access', 'Access', ICON.key]);
   return T;
 }
+/** The phone's bottom bar: five at most, so Requests and Access live in the header instead. */
+function barTabs() { return tabList().filter(function (t) { return !isMod() || (t[0] !== 'requests' && t[0] !== 'access'); }); }
+
+/* Wide screens: a computer, or the tracker inside the dojo's Wix page. */
+var wideMq = window.matchMedia ? window.matchMedia('(min-width: 900px)') : null;
+function wide() { return !!(wideMq && wideMq.matches); }
+if (wideMq) { var onWide = function () { if (state.data) render(); }; if (wideMq.addEventListener) wideMq.addEventListener('change', onWide); else if (wideMq.addListener) wideMq.addListener(onWide); }
+var inFrame = (function () { try { return window.self !== window.top; } catch (e) { return true; } })();
+var FULL_TABS = ['home', 'members', 'grid', 'ready'];
 
 /* ---------- belts, statuses, kata ---------- */
 function belts() { return state.data.belts; }
@@ -557,14 +770,18 @@ function render() {
   var tabs = tabList().map(function (t) { return t[0]; });
   if (!session) state.tab = 'kata';
   else if (tabs.indexOf(state.tab) === -1) { state.tab = homeTab(); state.member = null; }
+  document.body.classList.toggle('wide', wide());
+  app.className = wide() && FULL_TABS.indexOf(state.tab) !== -1 ? 'full' : '';
   renderHeader();
   renderTabs();
   if (!state.data) return;
   var html;
   if (session && !state.data.me) html = '<div class="stack"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>';
   else if (state.tab === 'mine') html = myKata();
-  else if (state.tab === 'members') html = state.member ? memberDetail(memberByName(state.member)) : memberList();
+  else if (state.tab === 'home') html = homeView();
+  else if (state.tab === 'members') html = membersView();
   else if (state.tab === 'kata') html = state.kata ? kataDetail() : kataList();
+  else if (state.tab === 'grid') html = gridView();
   else if (state.tab === 'requests') html = requestsView();
   else if (state.tab === 'ready') html = readyView();
   else html = accessView();
@@ -572,34 +789,64 @@ function render() {
     (state.stale ? ' · refreshing…' : '') + '</span><span class="row" style="gap:14px">' +
     (state.data.sheetUrl ? '<a class="linkbtn" href="' + esc(state.data.sheetUrl) + '" target="_blank" rel="noopener">Open the sheet</a>' : '') +
     '<button type="button" class="linkbtn" data-act="refresh">Refresh</button></span></div>';
+  var gx = state.tab === 'grid' && document.querySelector('.gwrap'), sx = gx ? [gx.scrollLeft, gx.scrollTop] : null;
   app.innerHTML = html;
+  if (sx) { var g2 = document.querySelector('.gwrap'); if (g2) { g2.scrollLeft = sx[0]; g2.scrollTop = sx[1]; } }
   var s = $('search');
   if (s) s.addEventListener('input', function () {
     state.query = s.value;
-    $('results').innerHTML = state.tab === 'members' ? memberGroups() : state.tab === 'access' ? accessRows() : kataGroups();
+    $('results').innerHTML = state.tab === 'members' ? memberRows() : state.tab === 'access' ? accessRows() : kataGroups();
   });
 }
 
+function waitingCount() { return state.data && state.data.requests ? state.data.requests.length : 0; }
+function linkCount() { return state.data && state.data.linkRequests ? state.data.linkRequests.length : 0; }
+
 function renderHeader() {
-  var b = $('acctBtn');
+  var b = $('acctBtn'), r = $('reqBtn');
+  r.hidden = !session || !isMod();
+  if (!r.hidden) {
+    var n = waitingCount();
+    r.innerHTML = ICON.msg + (n ? '<span class="hbadge">' + n + '</span>' : '');
+    r.setAttribute('aria-label', 'Requests' + (n ? ', ' + n + ' waiting' : ''));
+    r.classList.toggle('on', state.tab === 'requests');
+  }
   if (!session) {
     b.className = 'hbtn'; b.innerHTML = ICON.lock + 'Sign in'; b.setAttribute('aria-label', 'Sign in');
     return;
   }
   var name = (me() && me().name) || session.name, lv = level();
-  b.className = 'acct';
-  b.innerHTML = '<span class="ini">' + esc(initials(name)) + '</span>' + esc(lv);
+  // Moderators also have the Requests button here, so their account button is just initials.
+  b.className = 'acct' + (isMod() ? ' compact' : '');
+  b.innerHTML = '<span class="ini">' + esc(initials(name)) + '</span>' + (isMod() ? '' : esc(lv)) + (isAdmin() && linkCount() ? '<span class="hbadge">' + linkCount() + '</span>' : '');
   b.setAttribute('aria-label', 'Account: ' + name + ', ' + lv + '. Tap for options');
 }
 
+/** The wide top bar: brand, every screen, open-in-a-tab (inside the Wix page), account. */
+function renderNav() {
+  var nav = $('dnav');
+  if (!wide()) { nav.innerHTML = ''; return; }
+  var html = '<span class="b2"><i></i>Kata Tracker</span>' + tabList().map(function (t) {
+    var n = t[0] === 'requests' ? waitingCount() : t[0] === 'access' ? linkCount() : 0;
+    return '<button type="button" class="nl" data-tab="' + t[0] + '"' + (state.tab === t[0] ? ' aria-current="page"' : '') + '>' + esc(t[1]) +
+      (n ? '<span class="nb" aria-label="' + n + ' waiting">' + n + '</span>' : '') + '</button>';
+  }).join('') + '<span class="sp"></span>';
+  if (inFrame) html += '<a class="ib" href="' + esc(location.href.split('#')[0]) + '" target="_blank" rel="noopener" aria-label="Open in its own tab" title="Open in its own tab">' + ICON.ext + '</a>';
+  if (session) {
+    var name = (me() && me().name) || session.name;
+    html += '<button type="button" class="a2" data-acct><span class="ini">' + esc(initials(name)) + '</span>' + esc(level()) + '</button>';
+  } else html += '<button type="button" class="a2 out" data-signin>Sign in</button>';
+  nav.innerHTML = html;
+}
+
 function renderTabs() {
-  var T = tabList();
+  renderNav();
+  var T = barTabs();
   $('tabs').hidden = !T.length;
   var inner = $('tabsIn');
   inner.className = 'tabs-in' + (T.length >= 5 ? ' five' : '');
   inner.style.gridTemplateColumns = 'repeat(' + T.length + ',minmax(0,1fr))';
-  var waiting = state.data && state.data.requests ? state.data.requests.length : 0;
-  var links = state.data && state.data.linkRequests ? state.data.linkRequests.length : 0;
+  var waiting = waitingCount(), links = linkCount();
   inner.innerHTML = T.map(function (t) {
     var badge = t[0] === 'requests' && waiting ? '<span class="badge" aria-label="' + waiting + ' waiting">' + waiting + '</span>'
       : t[0] === 'access' && links ? '<span class="badge" aria-label="' + links + ' waiting">' + links + '</span>' : '';
@@ -693,59 +940,119 @@ function openAccount() {
   var fam = m && m.family && m.family.length ? '<div class="sec"><h3>Family members you can see</h3><div>' + esc(m.family.join(', ')) + '</div></div>' : '';
   openSheet('<div class="grab"></div><h2 id="sheetTitle">' + esc(name) + '</h2><p>' + esc(level()) + (m && m.password ? ' · signed in with the temporary instructor password' : '') + '</p>' +
     '<div class="hint" style="margin:0">' + esc(LEVEL_HINT[level()] || '') + '</div>' + fam +
+    (isAdmin() ? '<div class="sec"><button type="button" class="btn" data-goto="access" style="display:flex;align-items:center;justify-content:center;gap:8px">' +
+      ICON.key.replace('<svg', '<svg style="width:18px;height:18px"') + 'Access: levels, codes and family links' + (linkCount() ? ' (' + linkCount() + ' waiting)' : '') + '</button></div>' : '') +
     '<div class="btnrow" style="margin-top:18px"><button type="button" class="btn" data-close>Close</button><button type="button" class="btn primary" data-signout>Sign out</button></div>');
 }
 
-/* ----- Members (moderators) ----- */
-function memberList() {
-  var n = state.data.members.length;
-  var ready = state.data.members.filter(function (m) { var r = readiness(m); return r && r.ready; }).length;
-  return '<div class="stack"><div><h1>Members</h1><div class="sub">' + esc(n + ' active · ' + ready + ' ready to grade') + '</div></div>' +
-    searchBox('Search members') + '<div class="stack" id="results">' + memberGroups() + '</div></div>';
+/* ----- Members (moderators): a simple list (a table on wide screens) and one member's kata ----- */
+var MSORT = { beltDesc: 'Belt, highest first', beltAsc: 'Belt, lowest first', last: 'Last name', known: 'Most kata known' };
+var ms = { belt: 'All', sort: MSORT[recall('kt.msort')] ? recall('kt.msort') : 'beltDesc', all: false };
+function lastName(n) { var w = String(n || '').replace(/\(.*?\)/g, '').trim().split(/\s+/); return (w[w.length - 1] || '').toLowerCase(); }
+function byLastName(a, b) { return lastName(a.name).localeCompare(lastName(b.name)) || a.name.localeCompare(b.name); }
+/** Lowest-to-highest counts per status for one member, across every kata. */
+function tally(m) {
+  var t = statuses().map(function () { return 0; });
+  state.data.kata.forEach(function (k) { var i = statusIndex(statusOf(m.name, k.name)); if (i >= 0) t[i]++; });
+  return t;
+}
+function knownTotal(t) { var n = 0; t.forEach(function (c, i) { if (statuses().length > 1 ? i >= 1 : true) n += c; }); return n; }
+/** Belt (highest first) then last name, unless the person picked another order. */
+function sortMembers(list, how) {
+  var known = {};
+  if (how === 'known') list.forEach(function (m) { known[m.name] = knownTotal(tally(m)); });
+  var f = how === 'beltAsc' ? function (a, b) { return (beltIndex(a.belt) - beltIndex(b.belt)) || byLastName(a, b); }
+    : how === 'last' ? byLastName
+    : how === 'known' ? function (a, b) { return (known[b.name] - known[a.name]) || byLastName(a, b); }
+    : function (a, b) { return (beltIndex(b.belt) - beltIndex(a.belt)) || byLastName(a, b); };
+  return list.slice().sort(f);
+}
+function lastChanges() { var out = {}; (state.data.log || []).forEach(function (e) { if (!out[e.member]) out[e.member] = e.time; }); return out; }
+function shownMembers() {
+  return sortMembers(state.data.members.filter(function (m) { return matches(state.query, m.name) && (ms.belt === 'All' || m.belt === ms.belt); }), ms.sort);
+}
+function memberCountText(n) { var all = state.data.members.length; return n === all ? all + ' active members' : n + ' of ' + all + ' members'; }
+
+function memberList() { return membersView(); }
+/** Wide screens show the member beside the list, so picking one doesn't jump the page. */
+function openMember(name) {
+  if (wide() && state.tab === 'members') {
+    state.member = name;
+    try { history.replaceState(snapshot(), ''); } catch (e) {}
+    render();
+    var p = document.querySelector('.mpanel'); if (p) p.scrollTop = 0;
+  } else go('members', name);
+}
+function membersView() {
+  var d = state.data, W = wide();
+  var m = state.member ? memberByName(state.member) : null;
+  if (state.member && !m) state.member = null;
+  if (!W && m) return '<div class="stack"><button type="button" class="back" data-back>' + ICON.back + 'All members</button>' + memberPanel(m) + '</div>';
+  var used = belts().filter(function (b) { return d.members.some(function (x) { return x.belt === b.name; }); }).map(function (b) { return b.name; });
+  if (ms.belt !== 'All' && used.indexOf(ms.belt) === -1) ms.belt = 'All';
+  var list = shownMembers();
+  var html = '<div class="pg-h"><div class="grow"><h1>Members</h1><div class="sub" id="mcount">' + esc(memberCountText(list.length)) + '</div></div>' +
+    (W ? '<div style="flex:0 1 260px">' + searchBox('Search members') + '</div>' : '') + '</div>' +
+    (W ? '' : searchBox('Search members')) +
+    '<div class="chips scroll" role="group" aria-label="Belt">' + ['All'].concat(used).map(function (b) {
+      return '<button type="button" class="chip dark" data-mbelt="' + esc(b) + '" aria-pressed="' + (ms.belt === b) + '">' + (b === 'All' ? '' : dot(b)) + esc(b) + '</button>';
+    }).join('') + '</div>' +
+    '<div class="frow2"><span class="flabel">Sort by</span><div class="segx" role="group" aria-label="Sort members">' + Object.keys(MSORT).map(function (k) {
+      return '<button type="button" data-msort="' + k + '" aria-pressed="' + (ms.sort === k) + '">' + esc(W ? MSORT[k] : MSORT[k].replace(', highest first', ' ↓').replace(', lowest first', ' ↑')) + '</button>';
+    }).join('') + '</div></div>' +
+    '<div id="results">' + memberRows() + '</div>';
+  if (!W) return '<div class="stack">' + html + '</div>';
+  return '<div class="cols"><div class="mainc stack">' + html + '</div><div class="side">' +
+    (m ? memberPanel(m) : '<div class="mpanel"><div class="empty" style="padding:24px 8px">Pick a member to see and change their kata.</div></div>') + '</div></div>';
 }
 
-function memberGroups() {
-  var members = state.data.members.filter(function (m) { return matches(state.query, m.name); });
-  if (!state.data.members.length) return '<div class="card empty">No members yet. Add them on the Members tab of the Google Sheet.</div>';
-  if (!members.length) return '<div class="card empty">No members match “' + esc(state.query) + '”.</div>';
-  var html = '';
-  var list = belts().slice().reverse().concat([{ name: '' }]);
-  list.forEach(function (b) {
-    var group = members.filter(function (m) { return b.name ? m.belt === b.name : beltIndex(m.belt) === -1; });
-    if (!group.length) return;
-    var open = !state.collapsed[b.name] || !!state.query;
-    var next = b.name ? nextBelt(b.name) : '';
-    var readyN = 0, rows = '';
-    group.forEach(function (m) {
-      var r = readiness(m);
-      if (r && r.ready) readyN++;
-      var line, pct, tag = '', barCls = 'bar';
-      if (r) {
-        var left = r.missing.length;
-        pct = Math.round(r.have / r.required.length * 100);
-        line = r.have + ' of ' + r.required.length + ' for ' + r.next;
-        tag = r.ready ? '<span class="tag red">Ready for ' + esc(r.next) + '</span>' : '<span class="tag">' + left + ' to go</span>';
-        if (r.ready) barCls = 'bar red';
-      } else {
-        var exp = expectedKata(m), k = knownCount(m, exp);
-        pct = exp.length ? Math.round(k / exp.length * 100) : 0;
-        line = 'Knows ' + k + ' of ' + exp.length + ' through ' + (m.belt || 'their belt');
-      }
-      rows += '<button type="button" class="mrow" data-member="' + esc(m.name) + '"><span class="row"><span class="n">' + esc(m.name) + '</span>' + tag + '</span>' +
-        '<span class="row"><span class="grow ' + barCls + '"><i style="width:' + pct + '%"></i></span><span class="c">' + esc(line) + '</span></span></button>';
-    });
-    var sub = group.length + (group.length === 1 ? ' member' : ' members');
-    if (next) {
-      var probe = readiness(group[0]);
-      if (probe) sub += ' · ' + probe.required.length + ' kata needed for ' + next;
-    }
-    html += '<section class="card group"><button type="button" class="ghead" data-fold="' + esc(b.name) + '" aria-expanded="' + open + '">' +
-      (b.name ? dot(b.name, true) : '') + '<span class="grow"><span class="t">' + (b.name ? esc(b.name) + ' belt' : 'No belt set') + '</span><span class="s">' + esc(sub) + '</span></span>' +
-      (readyN ? '<span class="tag red">' + readyN + ' ready</span>' : '') +
-      '<span class="chev">' + (open ? ICON.up : ICON.down).replace('<svg', '<svg class="chev"') + '</span></button>' +
-      (open ? rows : '') + '</section>';
+function memberRows() {
+  var d = state.data, list = shownMembers(), W = wide(), last = lastChanges(), hasLog = !!d.log;
+  var c = $('mcount'); if (c) c.textContent = memberCountText(list.length);
+  if (!d.members.length) return '<div class="card empty">No members yet. Add them on the Members tab of the Google Sheet.</div>';
+  if (!list.length) return '<div class="card empty">No members match.</div>';
+  if (W) {
+    return '<div class="card" style="overflow-x:auto"><table class="tbl"><thead><tr><th scope="col">Member</th><th scope="col">Belt</th><th scope="col" class="r">Kata known</th><th scope="col" class="r">Learning</th>' +
+      (hasLog ? '<th scope="col" class="r">Last change</th>' : '') + '</tr></thead><tbody>' + list.map(function (m) {
+        var t = tally(m), l = t[0] || 0;
+        return '<tr data-mrow="' + esc(m.name) + '"' + (state.member === m.name ? ' class="sel"' : '') + '><td><button type="button" class="mrow" data-mopen="' + esc(m.name) + '">' + esc(m.name) + '</button></td>' +
+          '<td><span class="row" style="gap:8px;font-weight:700">' + dot(m.belt) + esc(m.belt || '–') + '</span></td>' +
+          '<td class="r"><span class="kn">' + knownTotal(t) + '</span></td>' +
+          '<td class="r">' + (l ? '<span class="lp">' + l + '</span>' : '<span style="color:#9A9A9A;font-weight:700">–</span>') + '</td>' +
+          (hasLog ? '<td class="r" style="color:var(--muted);font-weight:700">' + esc(last[m.name] ? ago(last[m.name]) : '–') + '</td>' : '') + '</tr>';
+      }).join('') + '</tbody></table></div>';
+  }
+  return '<div class="mlist">' + list.map(function (m) {
+    var t = tally(m), l = t[0] || 0;
+    return '<button type="button" class="mrow2" data-mopen="' + esc(m.name) + '">' + dot(m.belt, true) + '<span class="grow"><span class="n">' + esc(m.name) + '</span><span class="s">' +
+      esc((m.belt ? m.belt + ' belt · ' : '') + knownTotal(t) + ' kata known') + '</span></span>' + (l ? '<span class="lp">' + l + ' learning</span>' : '') +
+      ICON.go.replace('<svg', '<svg class="go"') + '</button>';
+  }).join('') + '</div>';
+}
+
+/** One member: status counts and their kata, each with Learning / Knows / Proficient buttons. */
+function memberPanel(m) {
+  var t = tally(m), sts = statuses();
+  var tileStyle = ['background:#FCEBDD;color:#8A3F0C', 'background:#E3EBFB;color:#1F4BA5', 'background:#111;color:#fff'];
+  var light = beltIndex(m.belt) <= 1;
+  var html = '<div class="mpanel"><div class="row" style="gap:14px"><span class="badge2" style="background:' + esc(beltColor(m.belt)) + ';color:' + (light ? '#111' : '#fff') + '">' + esc(initials(m.name)) + '</span>' +
+    '<div class="grow"><h2 class="h2" style="font-size:22px">' + esc(m.name) + '</h2><div class="sub">' + esc(m.belt ? m.belt + ' belt' : 'No belt set') + '</div></div></div>' +
+    '<div class="tiles">' + sts.map(function (s, i) { return '<div class="tile" style="' + tileStyle[Math.min(i, 2)] + '"><b>' + t[i] + '</b><span>' + esc(s) + '</span></div>'; }).join('') + '</div>' +
+    '<div class="row"><h3 class="ct grow" style="font-size:16px">Their kata</h3><button type="button" class="chip" data-msall aria-pressed="' + ms.all + '">' + (ms.all ? 'Only kata they’ve started' : 'Show all kata') + '</button></div>';
+  var list = state.data.kata.filter(function (k) { return ms.all || statusOf(m.name, k.name); });
+  list.sort(function (a, b) {
+    var la = statusIndex(statusOf(m.name, a.name)) === 0 ? 0 : 1, lb = statusIndex(statusOf(m.name, b.name)) === 0 ? 0 : 1;
+    return (la - lb) || (expectedIndex(a) - expectedIndex(b)) || (a.order - b.order);
   });
-  return html;
+  if (!list.length) html += '<div class="empty" style="padding:12px 0">Nothing started yet. Tap “Show all kata” to mark one.</div>';
+  html += '<div>' + list.map(function (k) {
+    var ci = statusIndex(statusOf(m.name, k.name));
+    return '<div class="krow2"><span class="grow"><span class="n">' + esc(k.name) + '</span><span class="s">' + esc(k.category + ' · ' + k.belt + ' belt kata') + '</span></span><div class="seg">' +
+      sts.map(function (s, i) {
+        return '<button type="button" class="' + (i === ci ? 'on' + Math.min(i, 2) : '') + '" aria-pressed="' + (i === ci) + '" data-set="' + esc(s) + '" data-who="' + esc(m.name) + '" data-kname="' + esc(k.name) + '">' + esc(s) + '</button>';
+      }).join('') + '</div></div>';
+  }).join('') + '</div>';
+  return html + '<p class="hint" style="margin:0">Tap a status to change it; tap it again to clear it.</p></div>';
 }
 
 /** One member's kata. Moderators can change statuses; members (My kata) can ask for changes. */
@@ -1070,39 +1377,406 @@ function setProgress(member, kata, status) {
   if (status) state.data.progress[member][kata] = status; else delete state.data.progress[member][kata];
 }
 
-/* ----- Ready to grade (moderators) ----- */
-function readyView() {
-  var all = state.data.members.map(function (m) { return { m: m, r: readiness(m) }; }).filter(function (x) { return x.r; });
-  var beltsWith = belts().filter(function (b) { return all.some(function (x) { return x.m.belt === b.name; }); }).map(function (b) { return b.name; });
-  if (state.readyBelt !== 'All' && beltsWith.indexOf(state.readyBelt) === -1) state.readyBelt = 'All';
-  var list = all.filter(function (x) { return state.readyBelt === 'All' || x.m.belt === state.readyBelt; });
-  var html = '<div class="stack"><div><div class="row" style="align-items:center"><h1 class="grow">Ready to grade</h1><span class="tag ink">' + ICON.lock + 'Moderators</span></div>' +
-    '<div class="sub">Knows or Proficient on every kata the handbook lists for their belt and below</div></div>' +
-    '<div class="chips" role="group" aria-label="Belt">' + ['All'].concat(beltsWith).map(function (b) {
-      return '<button type="button" class="chip" data-rbelt="' + esc(b) + '" aria-pressed="' + (state.readyBelt === b) + '">' + esc(b === 'All' ? 'All belts' : b) + '</button>';
-    }).join('') + '</div>';
-  var bands = [
-    { title: 'Ready now', test: function (x) { return x.r.ready; }, cls: 'red' },
-    { title: 'One kata to go', test: function (x) { return x.r.missing.length === 1; }, cls: 'ink' },
-    { title: 'Two kata to go', test: function (x) { return x.r.missing.length === 2; }, cls: 'soft' }
-  ];
-  var any = false;
-  bands.forEach(function (band) {
-    var people = list.filter(band.test).sort(function (a, b) { return byBeltDesc(a.m, b.m); });
-    if (!people.length) return;
-    any = true;
-    html += '<section class="stack" style="gap:10px"><div class="row"><h2 class="grow" style="margin:0;font-family:var(--f-d);font-size:17px;font-weight:800">' + band.title + '</h2><span class="tag ' + band.cls + '">' + people.length + '</span></div>' +
-      people.map(function (x) {
-        var note = x.r.ready ? 'All ' + x.r.required.length + ' kata at Knows or better' : 'Needs: ' + x.r.missing.map(function (k) { return k.name; }).join(', ');
-        return '<button type="button" class="card mrow" style="border:1.5px solid ' + (x.r.ready ? 'var(--red)' : 'var(--line)') + ';border-radius:18px" data-member="' + esc(x.m.name) + '">' +
-          '<span class="row"><span class="n">' + esc(x.m.name) + '</span><span class="row" style="gap:6px;font-size:13px;font-weight:800;color:var(--ink2)">' + dot(x.m.belt) + ICON.arrow.replace('<svg', '<svg style="width:14px;height:14px"') + dot(x.r.next) + esc(x.r.next) + '</span></span>' +
-          '<span style="font-size:13px;font-weight:700;color:' + (x.r.ready ? 'var(--red)' : 'var(--ink2)') + '">' + esc(note) + '</span></button>';
-      }).join('') + '</section>';
+/* ----- Overview (moderators' home) ----- */
+var ov = { lf: 'All', open: null };
+function pad2(n) { return ('0' + n).slice(-2); }
+function stat(label, value, sub, opts) {
+  opts = opts || {};
+  var inner = '<span class="l">' + esc(label) + '</span><b' + (opts.color ? ' style="color:' + opts.color + '"' : '') + '>' + esc(value) + '</b>' +
+    (sub ? '<span class="s"' + (opts.subColor ? ' style="color:' + opts.subColor + '"' : '') + '>' + esc(sub) + '</span>' : '');
+  return opts.tab ? '<button type="button" class="stat" data-tab="' + opts.tab + '">' + inner + '</button>' : '<div class="stat">' + inner + '</div>';
+}
+function homeView() {
+  var d = state.data, W = wide(), sts = statuses(), firstSt = sts[0], members = d.members;
+  var learning = {}, learners = 0;
+  members.forEach(function (m) {
+    var any = false;
+    d.kata.forEach(function (k) { if (statusOf(m.name, k.name) === firstSt) { (learning[k.name] = learning[k.name] || []).push(m); any = true; } });
+    if (any) learners++;
   });
-  var further = list.filter(function (x) { return x.r.missing.length > 2; }).length;
-  if (!any) html += '<div class="card empty">Nobody is within two kata of their next belt' + (state.readyBelt === 'All' ? '' : ' at ' + esc(state.readyBelt)) + ' yet.</div>';
-  if (further) html += '<p class="hint">' + further + ' more ' + (further === 1 ? 'member is' : 'members are') + ' three or more kata away.</p>';
-  return html + '</div>';
+  var used = belts().filter(function (b) { return members.some(function (m) { return m.belt === b.name; }); });
+  var now = new Date(), prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  var thisM = now.getFullYear() + '-' + pad2(now.getMonth() + 1), lastM = prev.getFullYear() + '-' + pad2(prev.getMonth() + 1);
+  var learnedN = '–', learnedSub = 'shows once the sheet’s script is updated', subColor = '';
+  if (d.log) {
+    var cnt = function (mk) { return d.log.filter(function (e) { return String(e.time).slice(0, 7) === mk && isKnown(e.status); }).length; };
+    var a = cnt(thisM), b = cnt(lastM), pm = prev.toLocaleDateString('en-CA', { month: 'long' });
+    learnedN = a;
+    learnedSub = a > b ? (a - b) + ' more than ' + pm : a < b ? (b - a) + ' fewer than ' + pm : 'same as ' + pm;
+    if (a > b) subColor = '#2E7D46';
+  }
+  var reqs = d.requests || [];
+  var tiles = '<div class="tilesx">' +
+    stat('Active members', members.length, 'across ' + used.length + (used.length === 1 ? ' belt' : ' belts')) +
+    stat('Learning right now', learners + (learners === 1 ? ' member' : ' members'), 'on ' + Object.keys(learning).length + ' different kata', { color: '#8A3F0C' }) +
+    stat('Kata learned this month', learnedN, learnedSub, { subColor: subColor }) +
+    stat('Requests waiting', reqs.length, reqs.length ? 'oldest ' + ago(reqs[reqs.length - 1].time) : 'all caught up', { color: reqs.length ? '#A00D25' : '', tab: 'requests' }) + '</div>';
+  var update = '<button type="button" class="bigbtn" data-tab="grid"' + (W ? '' : ' style="width:100%"') + '>' + ICON.check + 'Update after class</button>';
+  var head = '<div class="pg-h"><div class="grow"><h1>Dojo overview</h1><div class="sub">' + esc(now.toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' })) + '</div></div>' + (W ? update : '') + '</div>';
+
+  var max = Math.max.apply(null, [1].concat(used.map(function (b) { return members.filter(function (m) { return m.belt === b.name; }).length; })));
+  var beltCard = '<section class="cardx"><div class="hd"><h2 class="ct">Members by belt</h2><span class="flabel">' + members.length + ' active</span></div>' +
+    '<div role="img" aria-label="Number of active members at each belt" class="stack" style="gap:8px">' + used.map(function (b) {
+      var n = members.filter(function (m) { return m.belt === b.name; }).length;
+      return '<div class="hbar"><span class="t">' + dot(b.name) + esc(b.name) + '</span><span class="trk"><i style="width:' + (n / max * 100) + '%;background:' + esc(b.color) + '"></i></span><span class="n">' + n + '</span></div>';
+    }).join('') + '</div></section>';
+
+  var cats = categoryOrder(d.kata);
+  if (ov.lf !== 'All' && cats.indexOf(ov.lf) === -1) ov.lf = 'All';
+  var lk = Object.keys(learning).map(kataByName).filter(function (k) { return k && (ov.lf === 'All' || k.category === ov.lf); })
+    .sort(function (a, b) { return learning[b.name].length - learning[a.name].length || a.order - b.order; }).slice(0, 6);
+  var lmax = lk.length ? learning[lk[0].name].length : 1;
+  var learnCard = '<section class="cardx"><div class="hd"><h2 class="ct">Currently learning</h2><div class="segx" role="group" aria-label="Kata type">' +
+    ['All'].concat(cats).map(function (c) { return '<button type="button" data-lf="' + esc(c) + '" aria-pressed="' + (ov.lf === c) + '">' + esc(c) + '</button>'; }).join('') + '</div></div>' +
+    '<span class="hint" style="margin:0">Members marked ' + esc(firstSt) + ' on each kata · tap a kata to see who</span><div>' +
+    (lk.length ? lk.map(function (k) {
+      var ppl = learning[k.name], open = ov.open === k.name;
+      return '<button type="button" class="lrow" data-lopen="' + esc(k.name) + '" aria-expanded="' + open + '"><span><span class="n">' + esc(k.name) + '</span><span class="s">' +
+        esc(k.category + ' · ' + (k.learnedAt ? 'learned at ' + k.learnedAt : k.belt + ' belt kata')) + '</span></span><span class="mbar" style="background:#F5EDE6;height:10px"><i style="width:' + (ppl.length / lmax * 100) + '%;background:#E8955A"></i></span>' +
+        '<span style="font-weight:800;text-align:right;color:#8A3F0C">' + ppl.length + '</span></button>' +
+        (open ? '<div class="ppl">' + ppl.slice().sort(byLastName).map(function (m) { return '<span style="background:#FCEBDD;color:#8A3F0C">' + dot(m.belt) + esc(m.name) + '</span>'; }).join('') + '</div>' : '');
+    }).join('') : '<div class="empty" style="padding:14px 0">Nobody is marked ' + esc(firstSt) + ' right now.</div>') + '</div></section>';
+
+  var recent = '';
+  if (d.log) {
+    var rows = d.log.slice(0, W ? 5 : 4);
+    recent = '<section class="cardx" style="gap:2px"><h2 class="ct" style="margin-bottom:6px">Recent changes</h2>' + (rows.length ? rows.map(function (e) {
+      return '<div class="logrow"><span class="grow"><span class="n">' + esc(e.member + ' · ' + e.kata) + '</span><span class="s">' + esc(ago(e.time) + (e.by ? ' by ' + e.by : '')) + '</span></span>' + stPill(e.status) + '</div>';
+    }).join('') : '<div class="empty" style="padding:14px 0">No changes yet.</div>') + '</section>';
+  }
+  if (!W) return '<div class="stack">' + head + tiles + update + beltCard + learnCard + recent + '</div>';
+
+  var reqCard = '<section class="cardx"><div class="hd"><h2 class="ct">Requests</h2><button type="button" class="linkbtn" data-tab="requests">All requests</button></div>' +
+    (reqs.length ? reqs.slice(0, 3).map(function (q) {
+      return '<div class="rq"><div><div style="font-weight:800">' + esc(q.member) + '</div><div style="font-size:13px;font-weight:700;color:var(--ink2)">' +
+        esc(q.kata + ': ' + (statusOf(q.member, q.kata) || 'Not started') + ' → ' + q.to) + '</div>' + (q.note ? '<div style="font-size:12.5px;font-weight:600;color:var(--muted)">“' + esc(q.note) + '”</div>' : '') + '</div>' +
+        '<div class="btnrow"><button type="button" class="btn" data-decide="' + esc(q.id) + '" data-verdict="Declined">Decline</button><button type="button" class="btn primary" data-decide="' + esc(q.id) + '" data-verdict="Approved">Approve</button></div></div>';
+    }).join('') : '<div class="empty" style="padding:14px 0">All caught up.</div>') + '</section>';
+  return '<div class="stack" style="gap:18px">' + head + tiles + '<div class="cols"><div class="mainc">' + beltCard + '</div><div class="side">' + reqCard + '</div></div>' +
+    '<div class="cols"><div class="half">' + learnCard + '</div>' + (recent ? '<div class="half">' + recent + '</div>' : '') + '</div></div>';
+}
+
+/* ----- Progress grid (moderators): members × kata with filters; tap squares, then one Save ----- */
+var GDEF = { fOpen: true, mBelts: [], picked: [], sort: 'beltDesc', cats: [], req: 'Required', mode: 'learned', kBelts: [], arrange: 'sfb' };
+var gs = (function () {
+  var o = {};
+  try { o = JSON.parse(recall('kt.grid') || '{}') || {}; } catch (e) {}
+  return Object.assign({}, GDEF, o, { mq: '', kq: '', pickOpen: false });
+})();
+var gEdits = {};   // 'member\nkata' -> the new status ('' clears it), not saved yet
+function gKeep() { var o = {}; Object.keys(GDEF).forEach(function (k) { o[k] = gs[k]; }); store('kt.grid', JSON.stringify(o)); }
+var GARR = { sfb: 'Section, family, belt', sb: 'Section, belt', b: 'Belt only', sheet: 'Kata list order' };
+var GREQ = { All: 'All kata', Required: 'Required for grading', 'Not required': 'Not required' };
+var ORDINAL = /\s+(shodan|nidan|sandan|yondan|yodan|godan|rokudan|dai|sho)$/i;
+/** A kata's family is its name without the trailing Shodan/Nidan/Dai/Sho… (Heian, Goshin no Kata). */
+function family(k) { return k.name.replace(ORDINAL, '').trim(); }
+function learnedBelts(k) { return String(k.learnedAt || '').split(/[\/,&]/).map(function (s) { return s.trim(); }).filter(function (s) { return beltIndex(s) >= 0; }); }
+function gBelt(k) { var l = learnedIndex(k); return gs.mode === 'learned' && l >= 0 ? belts()[l].name : k.belt; }
+function gBeltLabel(k) { return gs.mode === 'learned' && learnedBelts(k).length ? k.learnedAt : k.belt; }
+function gKataMatch(k) {
+  if (gs.kq && !matches(gs.kq, k.name)) return false;
+  var req = learnedBelts(k).length > 0;
+  if (gs.req === 'Required' && !req) return false;
+  if (gs.req === 'Not required' && req) return false;
+  if (gs.kBelts.length) {
+    if (gs.mode === 'rank') return gs.kBelts.indexOf(k.belt) !== -1;
+    return learnedBelts(k).some(function (b) { return gs.kBelts.indexOf(b) !== -1; });
+  }
+  return true;
+}
+function gMemberMatch(m) { return matches(gs.mq, m.name) && (!gs.mBelts.length || gs.mBelts.indexOf(m.belt) !== -1); }
+function gCats() { var c = categoryOrder(state.data.kata); CATEGORIES.slice(1).forEach(function (x) { if (c.indexOf(x) === -1) c.push(x); }); return c; }
+function gLists() {
+  var d = state.data;
+  gs.picked = gs.picked.filter(function (n) { return memberByName(n); });
+  var mem = sortMembers(gs.picked.length ? d.members.filter(function (m) { return gs.picked.indexOf(m.name) !== -1; }) : d.members.filter(gMemberMatch), gs.sort);
+  var kat = d.kata.filter(function (k) { return gKataMatch(k) && (!gs.cats.length || gs.cats.indexOf(k.category) !== -1); });
+  var cats = gCats(), pos = {};
+  d.kata.forEach(function (k, i) { pos[k.name] = i; });
+  var sec = function (k) { return cats.indexOf(k.category); }, bi = function (k) { return beltIndex(gBelt(k)); };
+  var famMin = {};
+  kat.forEach(function (k) { var key = k.category + '|' + family(k), v = bi(k) * 1000 + pos[k.name]; if (famMin[key] == null || v < famMin[key]) famMin[key] = v; });
+  var ord = {
+    sfb: function (a, b) { return sec(a) - sec(b) || famMin[a.category + '|' + family(a)] - famMin[b.category + '|' + family(b)] || bi(a) - bi(b) || pos[a.name] - pos[b.name]; },
+    sb: function (a, b) { return sec(a) - sec(b) || bi(a) - bi(b) || pos[a.name] - pos[b.name]; },
+    b: function (a, b) { return bi(a) - bi(b) || sec(a) - sec(b) || pos[a.name] - pos[b.name]; },
+    sheet: function (a, b) { return pos[a.name] - pos[b.name]; }
+  }[gs.arrange] || function () { return 0; };
+  return { members: mem, kata: kat.sort(ord) };
+}
+function gKey(m, k) { return m + '\n' + k; }
+function gVal(m, k) { var key = gKey(m, k); return key in gEdits ? gEdits[key] : statusOf(m, k); }
+function gPending() { return Object.keys(gEdits).length; }
+function gSummary(L) { return L.members.length + ' of ' + state.data.members.length + ' members × ' + L.kata.length + ' of ' + state.data.kata.length + ' kata'; }
+function gActive() {
+  var a = [];
+  if (gs.picked.length) a.push(gs.picked.length === 1 ? gs.picked[0] : gs.picked.length + ' picked members');
+  else { if (gs.mq) a.push('“' + gs.mq + '”'); if (gs.mBelts.length) a.push(gs.mBelts.join(' + ') + ' members'); }
+  if (gs.req !== 'All') a.push(GREQ[gs.req]);
+  if (gs.cats.length) a.push(gs.cats.join(' + '));
+  if (gs.kBelts.length) a.push(gs.kBelts.join(' + ') + (gs.mode === 'rank' ? ' rank' : ' learned at'));
+  if (gs.kq) a.push('“' + gs.kq + '”');
+  return a;
+}
+
+function gridView() {
+  var W = wide(), L = gLists(), act = gActive();
+  var legend = '<div class="legend">' + statuses().map(function (s, i) {
+    var c = [['#FCEBDD', '#8A3F0C'], ['#E3EBFB', '#1F4BA5'], ['#111', '#fff']][Math.min(i, 2)];
+    return '<span><i style="background:' + c[0] + ';color:' + c[1] + '">' + esc(s.charAt(0)) + '</i>' + esc(s) + '</span>';
+  }).join('') + '</div>';
+  var html = '<div class="pg-h"><div class="grow"><h1>Progress grid</h1><div class="sub" id="gSum">' + esc(gSummary(L)) + '</div></div>' +
+    (W ? legend : '<button type="button" class="chip dark" data-gsheet aria-haspopup="dialog" style="border-color:var(--ink)">' + ICON.filter.replace('<svg', '<svg style="width:16px;height:16px"') +
+      'Filters' + (act.length ? ' · ' + act.length : '') + '</button>') + '</div>';
+  if (W) {
+    html += '<section class="cardx"><div class="fhead"><button type="button" class="fbtn" data-gfold aria-expanded="' + gs.fOpen + '">' + ICON.down + 'Filters and order' + (act.length ? ' (' + act.length + ' on)' : '') + '</button>' +
+      '<span class="fsum">' + (gs.fOpen ? '' : esc((act.length ? act.join(' · ') : 'Everything') + ' · sorted by ' + MSORT[gs.sort].toLowerCase() + ' · arranged by ' + GARR[gs.arrange].toLowerCase())) + '</span>' +
+      '<button type="button" class="linkbtn" data-gclear style="color:var(--red-d)">Clear all filters</button></div>' + (gs.fOpen ? gFilters(true) : '') + '</section>';
+  } else {
+    html += '<div class="ftags">' + (act.length ? act : ['Everything']).concat([GARR[gs.arrange]]).map(function (x) { return '<span>' + esc(x) + '</span>'; }).join('') + '</div>' + legend;
+  }
+  return '<div class="stack" style="gap:14px">' + html + '<div id="gBody" class="stack" style="gap:12px">' + gBody(L) + '</div></div>';
+}
+
+function gFilters(W) {
+  var d = state.data, used = belts().filter(function (b) { return d.members.some(function (m) { return m.belt === b.name; }); });
+  var chip = function (key, v, label, on, extra) { return '<button type="button" class="chip dark" data-gf="' + key + '" data-gv="' + esc(v) + '" aria-pressed="' + on + '">' + label + (extra || '') + '</button>'; };
+  var seg = function (key, map) { return '<div class="segx" role="group">' + Object.keys(map).map(function (v) { return '<button type="button" data-gset="' + key + '" data-gv="' + esc(v) + '" aria-pressed="' + (gs[key] === v) + '">' + esc(map[v]) + '</button>'; }).join('') + '</div>'; };
+  var search = function (id, ph, val) { return '<label class="fsearch">' + ICON.search + '<span class="vh">' + esc(ph) + '</span><input id="' + id + '" type="search" placeholder="' + esc(ph) + '" value="' + esc(val) + '" autocomplete="off"></label>'; };
+  var catCount = function (c) { return d.kata.filter(function (k) { return k.category === c && gKataMatch(k); }).length; };
+  var sortMap = {}; Object.keys(MSORT).forEach(function (k) { sortMap[k] = W ? MSORT[k] : MSORT[k].replace(', highest first', ' ↓').replace(', lowest first', ' ↑'); });
+  return '<div class="fpanel">' +
+    '<div class="frow2"><span class="flabel side">Members</span>' + search('gMq', 'Name', gs.mq) +
+      used.map(function (b) { return chip('mBelts', b.name, dot(b.name) + esc(b.name), gs.mBelts.indexOf(b.name) !== -1); }).join('') +
+      '<button type="button" class="chip dark" data-gpickopen aria-expanded="' + gs.pickOpen + '" aria-pressed="' + (gs.pickOpen || gs.picked.length > 0) + '">' + ICON.people.replace('<svg', '<svg style="width:16px;height:16px"') +
+      (gs.picked.length ? 'Picked (' + gs.picked.length + ')' : 'Pick members') + '</button></div>' +
+    (gs.picked.length ? '<div class="frow2 ind"><span class="flabel">Showing only</span>' + gs.picked.map(function (n) {
+      return '<button type="button" class="ftag" data-gf="picked" data-gv="' + esc(n) + '" aria-label="Remove ' + esc(n) + '">' + esc(n) + ICON.x + '</button>'; }).join('') + '</div>' : '') +
+    (gs.pickOpen ? '<div class="frow2 ind"><div class="picklist" id="gPick">' + gPickList() + '</div></div>' : '') +
+    '<div class="frow2 ind"><span class="flabel">Sort members by</span>' + seg('sort', sortMap) + '</div>' +
+    '<div style="height:1px;background:#EFEFEF"></div>' +
+    '<div class="frow2"><span class="flabel side">Kata</span>' + search('gKq', 'Kata name', gs.kq) +
+      gCats().map(function (c) { return chip('cats', c, esc(c), gs.cats.indexOf(c) !== -1, '<span class="cnt">' + catCount(c) + '</span>'); }).join('') + '</div>' +
+    '<div class="frow2 ind"><span class="flabel">Grading</span>' + seg('req', GREQ) + '</div>' +
+    '<div class="frow2 ind"><span class="flabel">Belt by</span>' + seg('mode', { learned: 'Learned at', rank: 'Rank' }) +
+      belts().map(function (b) { return chip('kBelts', b.name, dot(b.name) + esc(b.name), gs.kBelts.indexOf(b.name) !== -1); }).join('') + '</div>' +
+    '<div class="frow2 ind"><span class="flabel">Arrange kata by</span>' + seg('arrange', GARR) + '</div></div>';
+}
+function gPickList() {
+  return sortMembers(state.data.members.filter(gMemberMatch), gs.sort).map(function (m) {
+    return '<button type="button" class="chip dark" data-gf="picked" data-gv="' + esc(m.name) + '" aria-pressed="' + (gs.picked.indexOf(m.name) !== -1) + '">' + dot(m.belt) + esc(m.name) + '</button>';
+  }).join('') || '<span class="hint">No members match.</span>';
+}
+function gOpenSheet() {
+  var L = gLists();
+  openSheet('<div class="grab"></div><div class="row"><h2 id="sheetTitle" class="grow">Filters and order</h2><button type="button" class="textbtn" data-gclear style="color:var(--red-d)">Clear all</button></div>' +
+    gFilters(false) + '<div class="btnrow" style="margin-top:16px"><button type="button" class="btn primary" data-close>Show ' + esc(L.members.length + ' members × ' + L.kata.length + ' kata') + '</button></div>');
+}
+
+function gBody(L) {
+  L = L || gLists();
+  var M = L.members, K = L.kata, d = state.data, n = gPending();
+  var bar = '<div class="savebar"><span class="m">' + esc(n ? n + (n === 1 ? ' change' : ' changes') + ' not saved yet (outlined in red)' : 'Tap a square to step it: blank, ' + statuses().map(function (s) { return s.charAt(0); }).join(', ') + '. Save once when you’re done.') + '</span>' +
+    '<button type="button" class="btn ghost" data-gdiscard' + (n ? '' : ' disabled') + '>Discard</button><button type="button" class="btn primary" data-gsave' + (n ? '' : ' disabled') + '>Save' + (wide() ? ' changes' : '') + '</button></div>';
+  if (!M.length || !K.length) {
+    var why = !d.members.length ? 'No members yet.' : !M.length ? 'No members match these filters.'
+      : gs.cats.length === 1 && !d.kata.some(function (k) { return k.category === gs.cats[0]; }) ? 'No kata are filed as ' + gs.cats[0] + ' in the sheet yet.' : 'No kata match these filters.';
+    return '<div class="card empty">' + esc(why) + '</div>' + bar;
+  }
+  var H = 28;
+  var runs = function (keyFn) {
+    var out = [];
+    K.forEach(function (k, i) { var key = keyFn(k), l = out[out.length - 1]; if (l && l.key === key) l.span++; else out.push({ key: key, span: 1, k: k, start: i }); });
+    return out;
+  };
+  var famSize = {};
+  d.kata.forEach(function (k) { var f = k.category + '|' + family(k); famSize[f] = (famSize[f] || 0) + 1; });
+  var secCell = function (r) { return { cls: 'gsec', label: r.k.category + ' kata', style: '' }; };
+  var famCell = function (r) { return { cls: 'gfam', label: famSize[r.k.category + '|' + family(r.k)] > 1 ? family(r.k) : '', style: '' }; };
+  var beltCell = function (r) { var b = gBelt(r.k), c = beltColor(b); return { cls: 'gblt', label: gBeltLabel(r.k), style: 'box-shadow:inset 0 4px 0 ' + (beltIndex(b) === 0 ? '#D6D6D6' : c) + ';' }; };
+  var levels = {
+    sfb: [[function (k) { return k.category; }, secCell], [function (k) { return k.category + '|' + family(k); }, famCell]],
+    sb: [[function (k) { return k.category; }, secCell], [function (k) { return k.category + '|' + gBeltLabel(k); }, beltCell]],
+    b: [[function (k) { return gBeltLabel(k); }, beltCell]],
+    sheet: []
+  }[gs.arrange] || [];
+  var starts = levels.map(function (lv) { var s = {}; runs(lv[0]).forEach(function (r) { s[r.start] = true; }); return s; });
+  var edge = function (i) { return !levels.length || i === 0 ? '' : starts[0][i] ? 'e1' : (starts[1] && starts[1][i]) ? 'e2' : ''; };
+  var head = levels.map(function (lv, li) {
+    var top = li * H;
+    return '<tr><th class="corner" style="top:' + top + 'px"></th>' + runs(lv[0]).map(function (r) {
+      var c = lv[1](r);
+      return '<th scope="colgroup" colspan="' + r.span + '" class="gh ' + c.cls + '" style="top:' + top + 'px;' + c.style + '"' + (c.label ? ' title="' + esc(c.label) + '"' : '') + '>' + esc(c.label) + '</th>';
+    }).join('') + '<th class="gh" style="top:' + top + 'px"></th></tr>';
+  }).join('');
+  var nt = levels.length * H;
+  head += '<tr><th scope="col" class="mh" style="top:' + nt + 'px">Member</th>' + K.map(function (k, i) {
+    var lb = learnedBelts(k), sb = gs.mode === 'rank' || !lb.length ? [k.belt] : lb;
+    var fill = sb.length > 1 ? 'linear-gradient(90deg,' + beltColor(sb[0]) + ' 50%,' + beltColor(sb[1]) + ' 50%)' : beltColor(sb[0]);
+    var know = M.filter(function (m) { return isKnown(gVal(m.name, k.name)); }).length;
+    var title = k.name + ' · ' + k.category + ' · ranked ' + k.belt + (k.learnedAt ? ' · learned at ' + k.learnedAt : ' · not required for grading');
+    return '<th scope="col" class="kh ' + edge(i) + '" style="top:' + nt + 'px" title="' + esc(title) + '"><span class="strip" style="background:' + esc(fill) + '"></span><span class="kn">' + esc(k.name) + '</span><span class="km">' + know + ' know</span></th>';
+  }).join('') + '<th scope="col" class="toth" style="top:' + nt + 'px">Knows</th></tr>';
+  var body = M.map(function (m, mi) {
+    var known = 0;
+    var cells = K.map(function (k, ki) {
+      var v = gVal(m.name, k.name), si = statusIndex(v), ed = gKey(m.name, k.name) in gEdits;
+      if (isKnown(v)) known++;
+      return '<td class="' + edge(ki) + '"><button type="button" class="cell ' + (si < 0 ? 'sx' : 's' + Math.min(si, 2)) + (ed ? ' ed' : '') + '" data-cell="' + mi + ':' + ki + '" aria-label="' +
+        esc(m.name + ', ' + k.name + ': ' + (v || 'not started')) + '" title="' + esc(k.name + ': ' + (v || 'not started')) + '">' + esc(v ? v.charAt(0) : '') + '</button></td>';
+    }).join('');
+    return '<tr><th scope="row" class="rh"><span>' + dot(m.belt) + esc(m.name) + '</span></th>' + cells + '<td class="tot">' + known + ' / ' + K.length + '</td></tr>';
+  }).join('');
+  return '<div class="gwrap"><table class="gt"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>' + bar;
+}
+/** Re-draws only the table and Save bar (keeps the scroll position and the focus in a search box). */
+function gRefresh() {
+  var L = gLists(), box = $('gBody');
+  if (box) {
+    var w = box.querySelector('.gwrap'), x = w ? w.scrollLeft : 0, y = w ? w.scrollTop : 0;
+    box.innerHTML = gBody(L);
+    var w2 = box.querySelector('.gwrap'); if (w2) { w2.scrollLeft = x; w2.scrollTop = y; }
+  }
+  if ($('gSum')) $('gSum').textContent = gSummary(L);
+  if ($('gPick')) $('gPick').innerHTML = gPickList();
+}
+/** After a filter change: the page, and the phone's filter panel if it's open. */
+function gChanged() {
+  gKeep(); render();
+  if (!$('scrim').hidden && $('sheet').querySelector('.fpanel')) gOpenSheet();
+}
+function gStep(mi, ki) {
+  var L = gLists(), m = L.members[mi], k = L.kata[ki];
+  if (!m || !k) return;
+  var order = [''].concat(statuses()), cur = gVal(m.name, k.name), next = order[(order.indexOf(cur) + 1) % order.length], key = gKey(m.name, k.name);
+  if (next === statusOf(m.name, k.name)) delete gEdits[key]; else gEdits[key] = next;
+  gRefresh();
+}
+function gChanges() {
+  return Object.keys(gEdits).map(function (key) { var p = key.split('\n'); return { member: p[0], kata: p[1], from: statusOf(p[0], p[1]), to: gEdits[key] }; })
+    .filter(function (c) { return c.from !== c.to; });
+}
+function gSave() {
+  var ch = gChanges();
+  gEdits = {};
+  if (!ch.length) { gRefresh(); return; }
+  var many = function (n) { return n + (n === 1 ? ' change' : ' changes'); };
+  ch.forEach(function (c) { setProgress(c.member, c.kata, c.to); });
+  cacheData(); render(); toast('Saving ' + many(ch.length) + '…');
+  saveBatch(ch.map(function (c) { return [c.member, c.kata, c.to]; })).then(function () {
+    undoFn = function () {
+      ch.forEach(function (c) { setProgress(c.member, c.kata, c.from); });
+      cacheData(); render(); toast('Undoing…');
+      saveBatch(ch.map(function (c) { return [c.member, c.kata, c.from]; })).then(function () { toast('Undone · ' + many(ch.length) + ' put back'); })
+        .catch(function (e) { toast('Not undone: ' + errMsg(e), true); load(); });
+    };
+    toast('Saved ' + many(ch.length), false, true);
+  }).catch(function (e) {
+    ch.forEach(function (c) { setProgress(c.member, c.kata, c.from); gEdits[gKey(c.member, c.kata)] = c.to; });
+    cacheData(); render(); toast('Not saved: ' + errMsg(e), true); load();
+  });
+}
+// The sheet's script saves up to 15 changes per call; an older script without saveMany gets them one by one.
+var batchOk = true;
+function saveBatch(list) {
+  var parts = [];
+  for (var i = 0; i < list.length; i += 15) parts.push(list.slice(i, i + 15));
+  return parts.reduce(function (p, part) { return p.then(function () { return saveChunk(part); }); }, Promise.resolve());
+}
+function saveChunk(part) {
+  if (!batchOk) return part.reduce(function (p, c) { return p.then(function () { return call('saveStatus', c[0], c[1], c[2]); }); }, Promise.resolve());
+  return call('saveMany', part).catch(function (e) {
+    if (/Unknown action/i.test(errMsg(e))) { batchOk = false; return saveChunk(part); }
+    throw e;
+  });
+}
+window.addEventListener('beforeunload', function (e) { if (gPending()) { e.preventDefault(); e.returnValue = ''; } });
+
+/* ----- Readiness (moderators): who is ready to grade, who is close, and what they still need ----- */
+var rd = { status: null, belt: null, kata: null, focus: false };
+var RST = {
+  ready: ['Ready to grade', '#C8102E', 'know every kata for their next belt'],
+  near: ['One kata away', '#F2A7B3', 'need just one more kata'],
+  working: ['Still working', '#BDBDBD', 'need two or more kata']
+};
+function readyView() {
+  var d = state.data, W = wide();
+  var all = d.members.map(function (m) {
+    var r = readiness(m);
+    return r ? { m: m, r: r, st: r.ready ? 'ready' : r.missing.length === 1 ? 'near' : 'working' } : null;
+  }).filter(Boolean);
+  var inBelt = function (x) { return !rd.belt || x.m.belt === rd.belt; };
+  var needsIt = function (x) { return !rd.kata || x.r.missing.some(function (k) { return k.name === rd.kata; }); };
+  var inSt = function (x) { return !rd.status || x.st === rd.status; };
+  var pool = all.filter(function (x) { return inBelt(x) && needsIt(x); });
+  var head = '<div><h1>Readiness</h1><div class="sub">A member is ready when they know every kata learned at their belt and below.' + (W ? ' White and Black belts have no kata check.' : '') + '</div></div>';
+  if (!all.length) return '<div class="stack">' + head + '<div class="card empty">No members with a kata check yet. Fill in the Learned at column on the Kata tab of the sheet.</div></div>';
+
+  var tiles = '<div class="rtiles' + (rd.status ? ' picked' : '') + '" role="group" aria-label="Show members who are">' + Object.keys(RST).map(function (s) {
+    var c = pool.filter(function (x) { return x.st === s; }).length;
+    return '<button type="button" class="rtile' + (s === 'ready' ? ' ready' : '') + '" data-rst="' + s + '" aria-pressed="' + (rd.status === s) + '"><b>' + c + (W ? (c === 1 ? ' member' : ' members') : '') + '</b><span>' + esc(RST[s][0]) + '</span><small>' + esc(RST[s][2]) + '</small></button>';
+  }).join('') + '</div>';
+
+  var bnames = belts().filter(function (b) { return all.some(function (x) { return x.m.belt === b.name; }); }).map(function (b) { return b.name; });
+  if (rd.belt && bnames.indexOf(rd.belt) === -1) rd.belt = null;
+  var beltStats = bnames.map(function (b) {
+    var xs = all.filter(function (x) { return x.m.belt === b && needsIt(x); });
+    var c = function (s) { return xs.filter(function (x) { return x.st === s; }).length; };
+    return { b: b, n: xs.length, ready: c('ready'), near: c('near'), working: c('working') };
+  });
+  var beltPart = W
+    ? '<section class="cardx" style="gap:4px"><h2 class="ct" style="font-size:16px">By belt</h2><span class="hint" style="margin:0 0 4px">Tap a belt to show only those members</span>' + beltStats.map(function (s) {
+        var t = s.n || 1, seg = function (st, n) { return n ? '<i style="width:' + (n / t * 100) + '%;background:' + RST[st][1] + '"></i>' : ''; };
+        return '<button type="button" class="bbtn" data-rbelt="' + esc(s.b) + '" aria-pressed="' + (rd.belt === s.b) + '"><span class="t">' + dot(s.b) + esc(s.b) + '</span><span class="trk" role="img" aria-label="' +
+          esc(s.b + ': ' + s.ready + ' ready, ' + s.near + ' one kata away, ' + s.working + ' still working') + '">' + seg('ready', s.ready) + seg('near', s.near) + seg('working', s.working) + '</span><span class="n">' + s.ready + ' / ' + s.n + '</span></button>';
+      }).join('') + '</section>'
+    : '<div class="chips scroll" role="group" aria-label="Belt">' + beltStats.map(function (s) {
+        return '<button type="button" class="chip dark" data-rbelt="' + esc(s.b) + '" aria-pressed="' + (rd.belt === s.b) + '">' + dot(s.b) + esc(s.b) + '<span class="cnt">' + s.ready + '/' + s.n + '</span></button>';
+      }).join('') + '</div>';
+
+  var tally = {};
+  all.filter(function (x) { return inBelt(x) && inSt(x); }).forEach(function (x) { x.r.missing.forEach(function (k) { tally[k.name] = (tally[k.name] || 0) + 1; }); });
+  if (rd.kata && !tally[rd.kata]) tally[rd.kata] = 0;
+  var top = Object.keys(tally).sort(function (a, b) { return tally[b] - tally[a] || a.localeCompare(b); }).slice(0, W ? 7 : 6);
+  var mx = Math.max.apply(null, [1].concat(top.map(function (k) { return tally[k]; })));
+  var focusRows = top.length ? top.map(function (n) {
+    var k = kataByName(n) || {};
+    return '<button type="button" class="nbtn" data-rkata="' + esc(n) + '" aria-pressed="' + (rd.kata === n) + '"><span class="grow"><span class="n">' + esc(n) + '</span><span class="s">Learned at ' + esc(k.learnedAt || k.belt || '') + '</span></span>' +
+      '<span class="mbar"><i style="width:' + (tally[n] / mx * 100) + '%;background:var(--red)"></i></span><span style="width:20px;text-align:right;font-weight:800">' + tally[n] + '</span></button>';
+  }).join('') : '<div class="empty" style="padding:12px 0">Nobody is missing a kata here.</div>';
+  var focusOpen = W || rd.focus || !!rd.kata;
+  var focus = W
+    ? '<section class="cardx" style="gap:4px"><h2 class="ct" style="font-size:16px">Kata to focus on</h2><span class="hint" style="margin:0 0 4px">How many members still need each kata for grading</span>' + focusRows + '</section>'
+    : '<section class="cardx" style="padding:4px 14px 6px;gap:0"><button type="button" class="foldbtn" data-rfocus aria-expanded="' + focusOpen + '"><span class="grow"><span class="ct" style="font-size:16px;display:block">Kata to focus on</span>' +
+      '<span class="sub" style="margin:0">' + esc(top.length ? 'Most needed: ' + top[0] + ' (' + tally[top[0]] + ')' : 'Nothing missing') + '</span></span>' + ICON.down + '</button>' + (focusOpen ? '<div>' + focusRows + '</div>' : '') + '</section>';
+
+  var tags = [];
+  if (rd.status) tags.push(['status', RST[rd.status][0]]);
+  if (rd.belt) tags.push(['belt', rd.belt + ' belts']);
+  if (rd.kata) tags.push(['kata', 'Needs ' + rd.kata]);
+  var tagHtml = tags.map(function (t) { return '<button type="button" class="ftag" data-rclear="' + t[0] + '" aria-label="Remove filter: ' + esc(t[1]) + '">' + esc(t[1]) + ICON.x + '</button>'; }).join('');
+
+  var groups = Object.keys(RST).filter(function (s) { return !rd.status || rd.status === s; }).map(function (s) {
+    var xs = pool.filter(function (x) { return x.st === s; }).sort(function (a, b) { return (beltIndex(b.m.belt) - beltIndex(a.m.belt)) || byLastName(a.m, b.m); });
+    if (!xs.length) return '';
+    var rows = xs.map(function (x) {
+      return '<div class="rrow"><span class="who"><button type="button" data-mopen="' + esc(x.m.name) + '" title="Open ' + esc(x.m.name) + '">' + dot(x.m.belt) + esc(x.m.name) + '</button><span class="s">' + esc(x.m.belt + ' → ' + x.r.next) + '</span></span>' +
+        '<span class="pr">' + x.r.have + ' of ' + x.r.required.length + (W ? ' kata' : '') + '<span class="mbar"><i style="width:' + (x.r.have / x.r.required.length * 100) + '%;background:' + (x.r.ready ? 'var(--red)' : 'var(--ink)') + '"></i></span></span>' +
+        '<span class="miss">' + (x.r.ready ? (W ? 'Knows everything for ' + esc(x.r.next) : '') : x.r.missing.map(function (k) {
+          return '<button type="button" class="mchip" data-rkata="' + esc(k.name) + '" title="Show everyone who still needs ' + esc(k.name) + '">' + esc(k.name) + '</button>';
+        }).join('')) + '</span></div>';
+    }).join('');
+    var title = '<div class="rgrp"><span class="sw" style="background:' + RST[s][1] + '"></span>' + esc(RST[s][0]) + ' <span class="c">' + xs.length + '</span></div>';
+    return W ? '<div>' + title + rows + '</div>' : '<section class="cardx" style="gap:0;padding-top:4px">' + title + rows + '</section>';
+  }).join('');
+  if (!groups) groups = '<div class="empty">No members match. Remove a filter above.</div>';
+  var shown = pool.filter(inSt).length;
+
+  if (!W) return '<div class="stack">' + head + tiles + beltPart + focus + (tagHtml ? '<div class="chips">' + tagHtml + '</div>' : '') + groups + '</div>';
+  return '<div class="stack" style="gap:16px">' + head + tiles + '<div class="cols"><section class="mainc cardx" style="gap:6px"><div class="hd" style="min-height:36px"><h2 class="ct" style="font-size:18px">' +
+    esc(tags.length ? shown + ' of ' + all.length + ' members' : 'All ' + all.length + ' members with a check') + '</h2>' + tagHtml + '</div>' + groups +
+    '<button type="button" class="linkbtn" data-tab="grid" style="align-self:flex-start">Update statuses in the progress grid</button></section>' +
+    '<div class="side stack" style="gap:16px">' + beltPart + focus + '</div></div></div>';
 }
 
 /* ----- Access (admins) ----- */
@@ -1308,9 +1982,38 @@ function toast(msg, bad, undo) {
 /* ---------- events ---------- */
 document.addEventListener('click', function (e) {
   var t = e.target.closest('button, a');
-  if (!t) { if (e.target === $('scrim')) closeSheet(); return; }
+  if (!t) {
+    var tr = e.target.closest('tr[data-mrow]');
+    if (tr) { openMember(tr.dataset.mrow); return; }
+    if (e.target === $('scrim')) closeSheet();
+    return;
+  }
   var d = t.dataset;
-  if (t.id === 'acctBtn') { if (session) openAccount(); else openSignIn(); }
+  if (t.id === 'acctBtn' || d.acct !== undefined) { if (session) openAccount(); else openSignIn(); }
+  else if (d.goto) { closeSheet(); state.fromPlanner = false; go(d.goto); }
+  else if (d.mopen) { openMember(d.mopen); }
+  else if (d.mbelt) { ms.belt = d.mbelt; render(); }
+  else if (d.msort) { ms.sort = d.msort; store('kt.msort', d.msort); render(); }
+  else if (d.msall !== undefined) { ms.all = !ms.all; render(); }
+  else if (d.lf) { ov.lf = d.lf; ov.open = null; render(); }
+  else if (d.lopen) { ov.open = ov.open === d.lopen ? null : d.lopen; render(); }
+  else if (d.cell) { var ix = d.cell.split(':'); gStep(+ix[0], +ix[1]); }
+  else if (d.gsave !== undefined) { gSave(); }
+  else if (d.gdiscard !== undefined) { gEdits = {}; gRefresh(); }
+  else if (d.gfold !== undefined) { gs.fOpen = !gs.fOpen; gKeep(); render(); }
+  else if (d.gsheet !== undefined) { gOpenSheet(); }
+  else if (d.gpickopen !== undefined) { gs.pickOpen = !gs.pickOpen; gChanged(); }
+  else if (d.gf) {
+    var arr = gs[d.gf], at = arr.indexOf(d.gv);
+    if (at === -1) arr.push(d.gv); else arr.splice(at, 1);
+    gChanged();
+  }
+  else if (d.gset) { gs[d.gset] = d.gv; gChanged(); }
+  else if (d.gclear !== undefined) { Object.assign(gs, { mBelts: [], picked: [], cats: [], req: 'All', kBelts: [], mq: '', kq: '', pickOpen: false }); gChanged(); }
+  else if (d.rst) { rd.status = rd.status === d.rst ? null : d.rst; render(); }
+  else if (d.rkata) { rd.kata = rd.kata === d.rkata ? null : d.rkata; if (rd.kata) rd.focus = true; render(); }
+  else if (d.rfocus !== undefined) { var was = rd.focus || !!rd.kata; rd.focus = !was; if (was) rd.kata = null; render(); }
+  else if (d.rclear) { rd[d.rclear] = null; render(); }
   else if (d.signin !== undefined) { openSignIn(); }
   else if (d.signout !== undefined) { signOut(); load(); }
   else if (d.pwmode !== undefined) { state.pwMode = d.pwmode === '1'; var f = t.closest('form'); if (f) { f.outerHTML = signInForm(); } }
@@ -1346,12 +2049,11 @@ document.addEventListener('click', function (e) {
   else if (d.kata !== undefined && !d.choose) { go('kata', null, d.kata); }
   else if (d.back !== undefined) { go(state.tab); }
   else if (d.planner !== undefined) { backToPlanner(); }
-  else if (d.fold !== undefined) { state.collapsed[d.fold] = !state.collapsed[d.fold]; $('results').innerHTML = memberGroups(); }
   else if (d.cat) { state.category = d.cat; render(); }
   else if (d.higher !== undefined) { state.showHigher = !state.showHigher; render(); }
   else if (d.kview) { state.kataView = d.kview; state.needList = null; render(); }
   else if (d.notstarted !== undefined) { state.showNotStarted = !state.showNotStarted; render(); }
-  else if (d.rbelt) { state.readyBelt = d.rbelt; render(); }
+  else if (d.rbelt) { rd.belt = rd.belt === d.rbelt ? null : d.rbelt; render(); }
   else if (d.choose) { openChooser(d.who, d.choose); }
   else if (d.pick !== undefined) { var box = t.closest('.opts'); askChange(box.dataset.forMember, box.dataset.forKata, d.pick); }
   else if (d.set !== undefined) { var cur = statusOf(d.who, d.kname); askChange(d.who, d.kname, cur === d.set ? '' : d.set); }
@@ -1384,6 +2086,12 @@ document.addEventListener('submit', function (e) {
       cacheData(); render(); state.newCode = null; state.confirm = null; openPerson(res.name);
     }).catch(function (err) { $('addErr').textContent = errMsg(err); $('addGo').disabled = false; });
   }
+});
+
+// The grid's two search boxes redraw just the table, so typing doesn't lose focus.
+document.addEventListener('input', function (e) {
+  var id = e.target.id;
+  if (id === 'gMq' || id === 'gKq') { gs[id === 'gMq' ? 'mq' : 'kq'] = e.target.value; gRefresh(); }
 });
 
 document.addEventListener('keydown', function (e) {

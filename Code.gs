@@ -125,6 +125,7 @@ function dispatch_(r) {
   var s = session_(ss, r, action, aText);
   var fns = {
     saveStatus: [saveStatus_, 'Moderator'],
+    saveMany: [saveMany_, 'Moderator'],
     requestChange: [requestChange_, 'Member'],
     withdrawRequest: [withdrawRequest_, 'Member'],
     requestLink: [requestLink_, 'Member'],
@@ -304,6 +305,7 @@ function getData_(ss, s) {
     out.requests = reqs.filter(function (q) { return q.type === 'Kata' && q.state === 'Waiting'; }).reverse();
     out.recent = reqs.filter(function (q) { return q.type === 'Kata' && (q.state === 'Approved' || q.state === 'Declined'); })
       .sort(function (a, b) { return b.decidedMs - a.decidedMs; }).slice(0, 12);
+    out.log = readLog_(ss, names, 600);
   } else {
     out.myRequests = reqs.filter(function (q) {
       return q.type === 'Kata' && names.indexOf(q.member) !== -1 &&
@@ -405,6 +407,18 @@ function requestLink_(ss, s, member) {
 
 function saveStatus_(ss, s, member, kata, status) {
   return saveStatusChecked_(member, kata, status, s.name);
+}
+
+/** The progress grid's Save: several [member, kata, status] changes under one lock. */
+function saveMany_(ss, s, changes) {
+  if (!Array.isArray(changes) || changes.length > 40) throw new Error('Bad request.');
+  return withLock_(function () {
+    changes.forEach(function (c) {
+      if (!Array.isArray(c)) throw new Error('Bad request.');
+      saveStatusChecked_(c[0], c[1], c[2], s.name);
+    });
+    return { saved: changes.length };
+  });
 }
 
 function decide_(ss, s, id, verdict) {
@@ -707,6 +721,23 @@ function readKata_(ss, settings) {
       };
     })
     .sort(function (a, b) { return a.order - b.order; });
+}
+
+/** The newest Log rows (time, member, kata, status, who) for the given members, newest first. */
+function readLog_(ss, names, max) {
+  var sheet = ss.getSheetByName(TAB.LOG);
+  var last = sheet ? sheet.getLastRow() : 0;
+  if (last < 2) return [];
+  var start = Math.max(2, last - max + 1);
+  var rows = sheet.getRange(start, 1, last - start + 1, 5).getValues();
+  var out = [];
+  for (var i = rows.length - 1; i >= 0; i--) {
+    var r = rows[i], who = str_(r[1]);
+    if (!who || names.indexOf(who) === -1) continue;
+    var st = str_(r[3]);
+    out.push({ time: fmtDate_(r[0]), member: who, kata: str_(r[2]), status: st === '(cleared)' ? '' : st, by: str_(r[4]) });
+  }
+  return out;
 }
 
 function readMembers_(ss) {
