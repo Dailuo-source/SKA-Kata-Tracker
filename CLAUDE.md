@@ -33,7 +33,7 @@ Why two addresses: the page used to be served by Apps Script itself, but on phon
 
 ## API (`Code.gs`)
 
-- Every call is `{action, a, t, p, h}` → `{ok, result}` or `{ok:false, error}`, sent as a `text/plain` POST (no CORS preflight) or, as a fallback, `GET ?api=rpc&callback=fn&…` answered as JavaScript `fn({ok,…})` (Gary's Android Chrome never gets fetch replies from Apps Script; the page switches after one failure). `a` = JSON text of the arguments, `t` = phone clock (ms, must be within 15 min).
+- Every call is `{action, a, t, p, h}` → `{ok, result}` or `{ok:false, error}`, sent as a `text/plain` POST (no CORS preflight) or, as a fallback, `GET ?api=rpc&callback=fn&…` answered as JavaScript `fn({ok,…})` (Gary's Android Chrome never gets fetch replies from Apps Script; the page switches after one failure). The fallback `<script>` is loaded with `crossOrigin='anonymous'` (no cookies, so several signed-in Google accounts can't trigger the /macros/u/N/ rewrite); if it fails, a read retries with fetch and goes back to fetch for good when that works. `a` = JSON text of the arguments, `t` = phone clock (ms, must be within 15 min).
   - `signIn`: `h` = SHA-256(`t:` + SHA-256(`ska-kata:` + CODE)) → `{p, k, name, level}`. `p` is the session (name, code check, 400-day expiry, base64), `k` = HMAC of `p` with `TOKEN_SECRET`, kept on the phone (`kt.session`, or sessionStorage if "Keep me signed in" is off).
   - Signed calls send `p` and `h` = SHA-256(`t:k:action:a`), so no code, password or key is ever in an address. The level is read fresh from the Access tab on every call. Errors starting `SIGNED_OUT:` make the page sign out.
   - `getData` (signed out or in): only what that level may see (see the table). Members get `members`/`progress` for themselves and linked family, `myRequests`, `myLinks`; moderators also `requests`, `recent`, `log` (newest 600 Log rows: time, member, kata, status, by); admins also `linkRequests`, `access`, `sheetUrl`.
@@ -101,6 +101,7 @@ Inside the `index.html` script, search for:
 - Open: remove the TEMPORARY PASSWORD button and code once it's turned off; move to Cloudflare Pages before making it installable; later switch sign-in to the dojo website's.
 
 ## Changelog (latest first, keep about 10 lines)
+- 2026-10-21: Fallback route without cookies, and it falls back to fetch (fixes “Couldn’t refresh: script route failed”)
 - 2026-10-21: Instructor level (all but Access); Readiness only for instructors and admins; Members is the landing screen (script version 14)
 - 2026-10-21: Home renamed Overview and moved right of Grid
 - 2026-10-21: Deployed version 13: the combined Code.gs (log, saveMany and the planner key)
@@ -108,4 +109,3 @@ Inside the `index.html` script, search for:
 - 2026-10-18: Turned the handoff notes into a brief (read-first rules, code map, status, changelog)
 - 2026-10-17: Switch to the script route when a fetch reply never arrives, and remember it
 - 2026-10-17: Access levels: member codes, requests, moderators and admins
-- 2026-10-17: Fallback route when a phone can't read fetch replies from the sheet

@@ -539,8 +539,17 @@ function call(fn) {
   var args = Array.prototype.slice.call(arguments, 1);
   var once = function (route) { return request(fn, args).then(route); };
   var p;
-  if (useScriptRoute) p = once(viaScript);
-  else {
+  if (useScriptRoute) {
+    // A phone on the script route still tries fetch when the script route fails, and goes
+    // back to fetch for good if that works (only for reads, so a change is never sent twice).
+    p = once(viaScript).catch(function (e) {
+      if (e && e.fromSheet) throw e;
+      report({ stage: 'script', fn: fn, err: String((e && e.message) || e) });
+      var gone = new Error('Can’t reach the sheet. Check your connection and try again.');
+      if (fn !== 'getData') throw gone;
+      return once(viaFetch).then(function (r) { useScriptRoute = false; store('kt.route', null); return r; }, function () { throw gone; });
+    });
+  } else {
     var t0 = Date.now();
     p = once(viaFetch).catch(function (e) {
       if (!e || !e.network) throw e;
@@ -583,6 +592,9 @@ function scriptGet(params) {
   return new Promise(function (resolve, reject) {
     var cb = 'ktcb' + Date.now() + Math.floor(Math.random() * 1e6);
     var s = document.createElement('script');
+    // No cookies: with several Google accounts signed in, Google otherwise rewrites the
+    // address to /macros/u/N/… and the request fails ("script route failed").
+    s.crossOrigin = 'anonymous';
     var timer = setTimeout(function () { done(); reject(new Error('timed out')); }, 45000);
     function done() { clearTimeout(timer); try { delete window[cb]; } catch (e) { window[cb] = undefined; } s.remove(); }
     window[cb] = function (j) { done(); resolve(j); };
@@ -593,8 +605,8 @@ function scriptGet(params) {
 }
 // One short note per visit to the script's log, so a phone-only problem can be seen and fixed.
 function report(info) {
-  if (reported && info.stage === 'fetch') return;
-  if (info.stage === 'fetch') reported = true;
+  if (reported) return;
+  reported = true;
   try {
     var body = JSON.stringify({ action: 'clientLog', a: JSON.stringify([Object.assign({
       ua: navigator.userAgent, online: navigator.onLine, app: (window.matchMedia && matchMedia('(display-mode: standalone)').matches) ? 'installed' : 'browser',
