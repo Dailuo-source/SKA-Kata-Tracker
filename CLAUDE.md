@@ -101,7 +101,7 @@ Inside the `index.html` script, search for:
 - Open: remove the TEMPORARY PASSWORD button and code once it's turned off; move to Cloudflare Pages before making it installable; later switch sign-in to the dojo website's.
 
 ## Changelog (latest first, keep about 10 lines)
-- 2026-10-21: Instructor level (all but Access); Readiness only for instructors and admins; Members is the landing screen
+- 2026-10-21: Instructor level (all but Access); Readiness only for instructors and admins; Members is the landing screen (script version 14)
 - 2026-10-21: Home renamed Overview and moved right of Grid
 - 2026-10-21: Deployed version 13: the combined Code.gs (log, saveMany and the planner key)
 - 2026-10-21: Desktop/Wix layout; new Overview, Grid and Readiness screens; simpler Members sorted by belt then last name; Code.gs adds `log` and `saveMany` (deployed as version 12)
