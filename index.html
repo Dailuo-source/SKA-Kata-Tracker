@@ -199,6 +199,8 @@ textarea.inp{height:auto;padding:10px 14px;resize:none;font-size:15px;line-heigh
 .chip.wait{border:1.5px dashed var(--red);color:#8E0B21;background:#fff;display:inline-flex;align-items:center;cursor:default}
 .sec{border-top:1px solid #ECECEC;padding-top:14px;margin-top:14px;display:flex;flex-direction:column;gap:10px}
 .sec h3{margin:0;font-size:13px;font-weight:800;color:var(--muted)}
+.seg.lv{grid-template-columns:repeat(4,minmax(0,1fr))}
+.seg.lv button{font-size:13px;padding:0 4px}
 .seg.lv button[aria-pressed=true]{background:var(--ink);color:#fff;border-color:var(--ink)}
 .opt[aria-pressed=true]{border:3px solid var(--red);background:var(--red-tint)}
 .frow{display:flex;align-items:center;gap:10px;min-height:44px;font-size:14px;font-weight:700}
@@ -430,17 +432,19 @@ var PLANNER_URL = 'https://ska-lesson-planner.pages.dev/';
 var PARAMS = new URLSearchParams(location.search);
 if (/^https:\/\/script\.google\.com\//.test(PARAMS.get('api') || '')) API_URL = PARAMS.get('api');
 var CATEGORIES = ['All', 'Solo', 'Multi-person', 'Weapon'];
-var LEVELS = ['Member', 'Moderator', 'Admin'];
+var LEVELS = ['Member', 'Moderator', 'Instructor', 'Admin'];
 var LEVEL_HINT = {
   Member: 'Sees only their own kata (and approved family members’). Can ask for changes.',
-  Moderator: 'Approves requests, sees who knows every kata, changes anyone’s kata, and sees Readiness.',
-  Admin: 'Everything a moderator can do, plus access levels, codes and family links.'
+  Moderator: 'Approves requests, sees who knows every kata, uses the grid and changes anyone’s kata. No Readiness.',
+  Instructor: 'Everything except Access: a moderator’s tools plus Readiness.',
+  Admin: 'Everything, plus access levels, codes and family links.'
 };
 
 /*
  * Who sees what (Gary's rules; the script enforces them, the page just follows):
  *   Signed out – the kata list.   Member – their own kata, asks for changes.
- *   Moderator  – everyone, makes changes, approves requests, Ready to grade.
+ *   Moderator  – everyone, makes changes, approves requests, the grid (no Readiness).
+ *   Instructor – everything except Access (adds Readiness).
  *   Admin      – everything, plus the Access tab.
  */
 var state = {
@@ -637,15 +641,18 @@ function nowLocal() {
 /* ---------- who is signed in ---------- */
 function me() { return state.data && state.data.me; }
 function level() { var m = me(); return m ? m.level : (session ? session.level : ''); }
-function isMod() { var l = level(); return l === 'Moderator' || l === 'Admin'; }
+function isMod() { var l = level(); return l === 'Moderator' || l === 'Instructor' || l === 'Admin'; }
+/** Readiness is for instructors and admins only (Gary). */
+function canReady() { var l = level(); return l === 'Instructor' || l === 'Admin'; }
 function isAdmin() { return level() === 'Admin'; }
-function homeTab() { return !session ? 'kata' : isMod() ? 'home' : 'mine'; }
+function homeTab() { return !session ? 'kata' : isMod() ? 'members' : 'mine'; }
 /** Every screen this person may open, in the order the wide top bar shows them. */
 function tabList() {
   if (!session) return [];
   if (!isMod()) return [['mine', 'My kata', ICON.person], ['kata', 'Kata', ICON.book]];
   var T = [['members', 'Members', ICON.people], ['kata', 'Kata', ICON.book], ['grid', 'Grid', ICON.grid], ['home', 'Overview', ICON.home],
-    ['requests', 'Requests', ICON.inbox], ['ready', 'Readiness', ICON.pulse]];
+    ['requests', 'Requests', ICON.inbox]];
+  if (canReady()) T.push(['ready', 'Readiness', ICON.pulse]);
   if (isAdmin()) T.push(['access', 'Access', ICON.key]);
   return T;
 }
@@ -1377,7 +1384,7 @@ function setProgress(member, kata, status) {
   if (status) state.data.progress[member][kata] = status; else delete state.data.progress[member][kata];
 }
 
-/* ----- Overview (moderators' home) ----- */
+/* ----- Overview (moderators and up) ----- */
 var ov = { lf: 'All', open: null };
 function pad2(n) { return ('0' + n).slice(-2); }
 function stat(label, value, sub, opts) {
@@ -1692,7 +1699,7 @@ function saveChunk(part) {
 }
 window.addEventListener('beforeunload', function (e) { if (gPending()) { e.preventDefault(); e.returnValue = ''; } });
 
-/* ----- Readiness (moderators): who is ready to grade, who is close, and what they still need ----- */
+/* ----- Readiness (instructors and admins): who is ready to grade, who is close, and what they still need ----- */
 var rd = { status: null, belt: null, kata: null, focus: false };
 var RST = {
   ready: ['Ready to grade', '#C8102E', 'know every kata for their next belt'],
@@ -1785,9 +1792,10 @@ function personByName(n) { return accessList().filter(function (p) { return p.na
 function accessView() {
   var d = state.data, list = accessList();
   var mods = list.filter(function (p) { return p.level === 'Moderator'; }).length;
+  var insts = list.filter(function (p) { return p.level === 'Instructor'; }).length;
   var admins = list.filter(function (p) { return p.level === 'Admin'; }).length;
   var noCode = list.filter(function (p) { return !p.hasCode; }).length;
-  var html = '<div class="stack"><div><h1>Access</h1><div class="sub">' + list.length + ' people · ' + mods + ' moderator' + (mods === 1 ? '' : 's') + ' · ' + admins + ' admin' + (admins === 1 ? '' : 's') + ' · ' + noCode + ' without a code</div></div>';
+  var html = '<div class="stack"><div><h1>Access</h1><div class="sub">' + list.length + ' people · ' + mods + ' moderator' + (mods === 1 ? '' : 's') + ' · ' + insts + ' instructor' + (insts === 1 ? '' : 's') + ' · ' + admins + ' admin' + (admins === 1 ? '' : 's') + ' · ' + noCode + ' without a code</div></div>';
   /* TEMPORARY PASSWORD: the switch for the shared instructor password. */
   if (d.passwordOn) {
     html += '<section class="warncard"><div class="row" style="gap:8px">' + ICON.lock.replace('<svg', '<svg style="width:20px;height:20px"') + '<h2 class="h2 grow">Temporary instructor password</h2></div>' +
@@ -1802,7 +1810,7 @@ function accessView() {
       (already ? '<div class="hint" style="margin:0">Already linked: ' + esc(already) + '</div>' : '') +
       '<div class="btnrow"><button type="button" class="btn" data-decide="' + esc(q.id) + '" data-verdict="Declined">Decline</button><button type="button" class="btn primary" style="flex:1.4" data-decide="' + esc(q.id) + '" data-verdict="Approved">Approve</button></div></article>';
   });
-  html += searchBox('Search people') + '<div class="chips" role="group" aria-label="Show">' + ['All', 'Moderators & admins', 'No code yet'].map(function (f) {
+  html += searchBox('Search people') + '<div class="chips" role="group" aria-label="Show">' + ['All', 'Staff', 'No code yet'].map(function (f) {
     return '<button type="button" class="chip dark" data-afilter="' + esc(f) + '" aria-pressed="' + (state.accessFilter === f) + '">' + esc(f) + '</button>';
   }).join('') + '</div>' +
     '<div id="results">' + accessRows() + '</div>' +
@@ -1813,7 +1821,7 @@ function accessRows() {
   var f = state.accessFilter;
   var list = accessList().filter(function (p) {
     if (!matches(state.query, p.name)) return false;
-    if (f === 'Moderators & admins') return p.level !== 'Member';
+    if (f === 'Staff') return p.level !== 'Member';
     if (f === 'No code yet') return !p.hasCode;
     return true;
   }).sort(function (a, b) { return (LEVELS.indexOf(b.level) - LEVELS.indexOf(a.level)) || a.name.localeCompare(b.name); });
@@ -1821,7 +1829,7 @@ function accessRows() {
   return '<section class="card group">' + list.map(function (p) {
     var sub = p.hasCode ? 'Code made ' + shortDate(p.made) + (p.lastSeen ? ' · signed in ' + shortDate(p.lastSeen) : '') : '<span class="need">No code yet</span>';
     if (!p.onList) sub = 'Not on the member list · ' + sub;
-    var cls = p.level === 'Admin' ? 'ink' : p.level === 'Moderator' ? 'red' : '';
+    var cls = p.level === 'Admin' ? 'ink' : p.level === 'Instructor' ? 'red' : p.level === 'Moderator' ? 'need' : '';
     return '<button type="button" class="krow" data-person="' + esc(p.name) + '">' + (p.belt ? dot(p.belt) : '<span class="dot" style="background:#fff"></span>') +
       '<span class="grow"><span class="n">' + esc(p.name) + '</span><span class="s">' + (p.hasCode ? esc(sub) : sub) + '</span></span>' +
       '<span class="tag ' + cls + '">' + esc(p.level) + '</span>' + ICON.go.replace('<svg', '<svg class="go"') + '</button>';
@@ -1990,7 +1998,12 @@ document.addEventListener('click', function (e) {
   }
   var d = t.dataset;
   if (t.id === 'acctBtn' || d.acct !== undefined) { if (session) openAccount(); else openSignIn(); }
-  else if (d.goto) { closeSheet(); state.fromPlanner = false; go(d.goto); }
+  else if (d.goto) {
+    state.fromPlanner = false;
+    // From the account panel, the new screen takes over the panel's history step.
+    if (!$('scrim').hidden) { hideSheet(); state.tab = d.goto; state.member = null; state.kata = null; state.query = ''; try { history.replaceState(snapshot(), ''); } catch (x) {} render(); scrollTop(); }
+    else go(d.goto);
+  }
   else if (d.mopen) { openMember(d.mopen); }
   else if (d.mbelt) { ms.belt = d.mbelt; render(); }
   else if (d.msort) { ms.sort = d.msort; store('kt.msort', d.msort); render(); }

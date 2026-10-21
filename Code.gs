@@ -7,7 +7,8 @@
  * Who sees what (Gary's rules):
  *   Signed out  – the dojo's kata list only.
  *   Member      – their own kata (and approved family members'); can ask for changes.
- *   Moderator   – everyone's kata, makes changes, approves requests, Ready to grade.
+ *   Moderator   – everyone's kata, makes changes, approves requests (no Readiness).
+ *   Instructor  – everything except Access (adds Readiness).
  *   Admin       – everything, plus access levels, access codes and family links.
  * People sign in with a personal access code (Access tab). The old shared instructor
  * password still works as Moderator access for now (see TEMPORARY PASSWORD below).
@@ -28,7 +29,7 @@ var TAB = {
 };
 var ACCESS_HEAD = ['Name', 'Level', 'Code hash', 'Code made', 'Family', 'Last signed in', 'Notes'];
 var REQ_HEAD = ['ID', 'Time', 'Type', 'Member', 'Kata', 'From', 'To', 'Note', 'Sent by', 'State', 'Decided by', 'Decided at', 'Was'];
-var LEVELS = ['Member', 'Moderator', 'Admin'];
+var LEVELS = ['Member', 'Moderator', 'Instructor', 'Admin'];
 
 var FIRST_KATA_COL = 3;          // Progress: A = Member, B = Belt (formula), C onward = kata
 var MAX_SIGNIN_FAILS = 10;       // wrong codes/passwords before sign-in pauses
@@ -259,7 +260,7 @@ function need_(s, level) {
   if (rank_(s.level) < rank_(level)) throw new Error('You don’t have access to do that.');
 }
 function isMod_(s) { return !!s && rank_(s.level) >= 1; }
-function isAdmin_(s) { return !!s && rank_(s.level) >= 2; }
+function isAdmin_(s) { return !!s && rank_(s.level) >= 3; }
 
 /** The members whose kata this person may see: everyone for moderators, else self + family. */
 function visibleNames_(s, members) {
@@ -458,7 +459,7 @@ function undoDecision_(ss, s, id) {
 
 function setLevel_(ss, s, name, level) {
   name = str_(name);
-  if (LEVELS.indexOf(level) === -1) throw new Error('Pick Member, Moderator or Admin.');
+  if (LEVELS.indexOf(level) === -1) throw new Error('Pick Member, Moderator, Instructor or Admin.');
   return withLock_(function () {
     var rows = readAccess_(ss);
     var a = rows.filter(function (x) { return x.name === name; })[0];
@@ -623,10 +624,10 @@ function menuMakeCode_() {
   if (r1.getSelectedButton() !== ui.Button.OK) return;
   var name = str_(r1.getResponseText()).replace(/,/g, ' ');
   if (!name) return;
-  var r2 = ui.prompt('Access level for ' + name, 'Member, Moderator or Admin:', ui.ButtonSet.OK_CANCEL);
+  var r2 = ui.prompt('Access level for ' + name, 'Member, Moderator, Instructor or Admin:', ui.ButtonSet.OK_CANCEL);
   if (r2.getSelectedButton() !== ui.Button.OK) return;
   var level = LEVELS.filter(function (l) { return l.toLowerCase() === str_(r2.getResponseText()).toLowerCase(); })[0];
-  if (!level) { ui.alert('Type Member, Moderator or Admin.'); return; }
+  if (!level) { ui.alert('Type Member, Moderator, Instructor or Admin.'); return; }
   var onList = readMembers_(ss).some(function (m) { return m.name === name; });
   if (!onList && !readAccess_(ss).some(function (a) { return a.name === name; })) {
     ss.getSheetByName(TAB.ACCESS).appendRow([name, level, '', '', '', '', 'Not on the member list']);

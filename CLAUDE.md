@@ -13,7 +13,8 @@ Tracks which kata each member of **Scarborough Academy of Karate (SKA)** knows. 
 | --- | --- |
 | Signed out | The dojo's kata list only (no names, no counts) |
 | **Member** | Their own kata (and family members an admin has linked); taps a kata to **ask** for Learning / Knows / Proficient with an optional note; can withdraw; asks to link a family member. Never sees others, readiness or Ready to grade |
-| **Moderator** | Overview, Members, Kata, Grid, Requests (approve/decline with Undo), Readiness ("for now"; Gary may revoke it); changes statuses (are you sure + Undo, or the Grid's one Save + Undo) |
+| **Moderator** | Members, Kata, Grid, Overview, Requests (approve/decline with Undo); changes statuses (are you sure + Undo, or the Grid's one Save + Undo). **No Readiness** (Gary, Oct 21) |
+| **Instructor** | Everything except Access: a moderator's screens plus **Readiness** |
 | **Admin** | Everything, plus the **Access** tab: set levels, make/remove access codes, approve family links (admins only), remove links, add people not on the member list (instructors, parents), turn off the temporary password |
 
 - Sign-in is a personal **access code** for now (6 characters like `K7P-4QX`, no 0/O/1/I/L). Gary later wants to use the dojo website's sign-in instead. A code is shown once when made; only `SHA-256("ska-kata:" + CODE)` is stored. Making a new code or removing it signs that person out everywhere. Sheet menu **Kata Tracker → Make an access code…** also makes one (that's how the first admin was made). **Sign everyone out** rotates `TOKEN_SECRET`.
@@ -47,7 +48,7 @@ Why two addresses: the page used to be served by Apps Script itself, but on phon
 - **Members**: Name, Belt, Active (No hides someone without losing history), Notes. Juniors are listed by initial + surname on purpose.
 - **Progress**: one row per member, one column per kata (A Member, B Belt via ARRAYFORMULA). New members/kata get rows/columns automatically, or via the sheet menu **Kata Tracker → Sync progress**.
 - **Log**: every change from the app (time, member, kata, status, who; approvals end in "(request)").
-- **Access** (made automatically): Name, Level (Member/Moderator/Admin), Code hash, Code made, Family (comma list of members this code also sees), Last signed in, Notes. People without a row are Members with no code. Deleting a row signs that person out.
+- **Access** (made automatically): Name, Level (Member/Moderator/Instructor/Admin), Code hash, Code made, Family (comma list of members this code also sees), Last signed in, Notes. People without a row are Members with no code. Deleting a row signs that person out.
 - **Requests** (made automatically): ID, Time, Type (Kata / Family), Member, Kata, From, To, Note, Sent by, State (Waiting / Approved / Declined / Withdrawn), Decided by, Decided at, Was (status before an approval, for Undo).
 - **Settings**: Dojo name (B2), Instructor password (B3), statuses in D2:D10 (Learning, Knows, Proficient; anything after the first counts as knowing), belts with colours from row 7, notes in column F.
 
@@ -55,7 +56,7 @@ Why two addresses: the page used to be served by Apps Script itself, but on phon
 
 - Look (Gary's choices): same as the SKA Lesson Planner (red #C8102E header with the dojo logo, black secondary, M PLUS Rounded 1c + Nunito Sans) on a light grey page (#ECECEA) with white cards. No dark mode.
 - Two layouts from one page (`wide()` = window at least 900 px, e.g. inside the dojo's Wix page): phone = red header + bottom tabs; wide = slim white top bar with every screen, pages up to 1,240 px, and an "open in its own tab" button when inside a frame. Mock-ups: the "Kata Tracker desktop" Design canvas (desktop row and Phone row).
-- Tabs by level: signed out = Kata (sign-in card on top, no tab bar); Member = **My kata**, **Kata**; Moderator = **Members**, **Kata**, **Grid**, **Overview**, **Readiness** in the bottom bar (Gary: the moderator/admin-only screens sit on the right; Overview is still where they land after signing in), with **Requests** as the speech-bubble header button (badge); Admin also gets **Access** (in the account panel on phones, in the top bar on wide screens; badge for family link requests).
+- Tabs by level: signed out = Kata (sign-in card on top, no tab bar); Member = **My kata**, **Kata**; Moderator = **Members** (where they land), **Kata**, **Grid**, **Overview** in the bottom bar; Instructor and Admin add **Readiness** (Gary: the screens for higher levels sit on the right), with **Requests** as the speech-bubble header button (badge); Admin also gets **Access** (in the account panel on phones, in the top bar on wide screens; badge for family link requests).
 - **Overview**: active members, learning right now, kata learned this month (from `log`), requests waiting; members by belt; requests (wide only); currently learning (tap a kata to see who); recent changes. No readiness here (Gary: readiness lives only on Readiness).
 - **Members**: simple list (table on wide: belt, kata known, learning, last change), belt chips, sort (default belt highest first, then **last name**; also belt lowest first, last name, most kata known; remembered as `kt.msort`). A member opens beside the list on wide, as a page on phones: Learning/Knows/Proficient counts and their kata with status buttons (are you sure + Undo). No readiness here.
 - **Grid**: members × kata. Filters (collapsible on wide, a bottom sheet on phones; remembered as `kt.grid`): member name, belts, pick individuals, sort; kata name, Solo/Multi-person/Weapon, required for grading, belt by Learned at or Rank, arrange by section → family → belt (default) / section → belt / belt / kata list order. Family = name without the trailing Shodan/Nidan/…/Dai/Sho. Tap a square to step blank → L → K → P; edits are outlined until one **Save** (Undo after), Discard drops them.
@@ -96,15 +97,15 @@ Inside the `index.html` script, search for:
 - Panels: `openSheet`, `closeSheet`, `openChooser`, `askChange`, `save`, `toast`; planner link `backToPlanner`
 
 ## Status
-- Working: desktop/Wix layout and the new Overview, Members, Grid and Readiness screens; per-person access codes with Member / Moderator / Admin levels, requests and approvals, Ready to grade, fallback route for phones that never get fetch replies, Lesson Planner link.
+- Working: desktop/Wix layout and the new Overview, Members, Grid and Readiness screens; per-person access codes with Member / Moderator / Instructor / Admin levels, requests and approvals, Ready to grade, fallback route for phones that never get fetch replies, Lesson Planner link.
 - Open: remove the TEMPORARY PASSWORD button and code once it's turned off; move to Cloudflare Pages before making it installable; later switch sign-in to the dojo website's.
 
 ## Changelog (latest first, keep about 10 lines)
+- 2026-10-21: Instructor level (all but Access); Readiness only for instructors and admins; Members is the landing screen
 - 2026-10-21: Home renamed Overview and moved right of Grid
 - 2026-10-21: Deployed version 13: the combined Code.gs (log, saveMany and the planner key)
 - 2026-10-21: Desktop/Wix layout; new Overview, Grid and Readiness screens; simpler Members sorted by belt then last name; Code.gs adds `log` and `saveMany` (deployed as version 12)
 - 2026-10-18: Turned the handoff notes into a brief (read-first rules, code map, status, changelog)
 - 2026-10-17: Switch to the script route when a fetch reply never arrives, and remember it
-- 2026-10-17: Save a new access code before showing it
 - 2026-10-17: Access levels: member codes, requests, moderators and admins
 - 2026-10-17: Fallback route when a phone can't read fetch replies from the sheet
