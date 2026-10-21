@@ -80,6 +80,9 @@ function doPost(e) {
   var r;
   try { r = JSON.parse((e && e.postData && e.postData.contents) || '{}'); }
   catch (err) { r = {}; }
+  if (r && r.action === 'plannerMembers') {
+    return ContentService.createTextOutput(JSON.stringify(plannerMembers_(r.key))).setMimeType(ContentService.MimeType.JSON);
+  }
   return ContentService.createTextOutput(JSON.stringify(run_(r))).setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -599,6 +602,8 @@ function onOpen() {
     .addItem('Sync progress', 'menuSync_')
     .addItem('Make an access code…', 'menuMakeCode_')
     .addItem('Sign everyone out', 'menuSignOutAll_')
+    .addSeparator()
+    .addItem('Show the Lesson Planner key', 'menuPlannerKey_')
     .addToUi();
 }
 
@@ -640,6 +645,33 @@ function menuSignOutAll_() {
   if (ui.alert('Sign everyone out?', 'Everyone will need to enter their access code again. Codes stay the same.', ui.ButtonSet.OK_CANCEL) !== ui.Button.OK) return;
   PropertiesService.getScriptProperties().setProperty('TOKEN_SECRET', Utilities.getUuid() + Utilities.getUuid());
   SpreadsheetApp.getActiveSpreadsheet().toast('Everyone has been signed out.', 'Kata Tracker');
+}
+
+/* ---------- Lesson Planner link: active member names for instructors' class notes ---------- */
+
+/**
+ * The SKA Lesson Planner's own script asks for the member list here (server to server, never from a phone),
+ * so instructors can tag notes with a student's name. It sends the key from Script Property PLANNER_KEY,
+ * which this menu item makes and shows: Kata Tracker → Show the Lesson Planner key.
+ */
+function plannerMembers_(key) {
+  var want = PropertiesService.getScriptProperties().getProperty('PLANNER_KEY');
+  if (!want || !key || sha256Hex_(String(key)) !== sha256Hex_(want)) return { ok: false, error: 'bad_key' };
+  return { ok: true, members: readMembers_(SpreadsheetApp.getActiveSpreadsheet()) };
+}
+
+function plannerKey_() {
+  var props = PropertiesService.getScriptProperties();
+  var k = props.getProperty('PLANNER_KEY');
+  if (!k) { k = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, ''); props.setProperty('PLANNER_KEY', k); }
+  return k;
+}
+
+function menuPlannerKey_() {
+  SpreadsheetApp.getUi().alert('Lesson Planner key',
+    'Paste this into the SKA Lesson Planner sheet: SKA Lesson Planner menu → Connect to the Kata Tracker…\n\n' + plannerKey_() +
+    '\n\nIt lets the planner read the names of active members (name and belt only). Keep it private.',
+    SpreadsheetApp.getUi().ButtonSet.OK);
 }
 
 /* ---------- Reading the tabs ---------- */

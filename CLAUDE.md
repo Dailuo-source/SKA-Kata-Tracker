@@ -39,6 +39,7 @@ Why two addresses: the page used to be served by Apps Script itself, but on phon
   - Member: `requestChange(member, kata, to, note)`, `withdrawRequest(id)`, `requestLink(name)`. Moderator: `saveStatus(member, kata, status)`, `saveMany([[member, kata, status], …])` (up to 40; the page sends 15 at a time and falls back to `saveStatus` if the script is older), `decide(id, 'Approved'|'Declined')`, `undoDecision(id)`. Admin: `setLevel`, `makeCode`, `removeCode`, `addPerson`, `removeFamily`, `setPassword(false)`.
   - 10 wrong codes/passwords pause sign-in for 15 min. `clientLog` (sent by `sendBeacon`) writes what failed to the Executions log (look for "Kata Tracker page problem").
 - `GET ?api=summary`: every kata with rank belt, Learned at belt and how many active members still need it (counts only). Used by the SKA Lesson Planner.
+- `POST {action:'plannerMembers', key}` (Oct 21): active members' names and belts, for tagging class notes in the SKA Lesson Planner. Only answers when `key` matches Script Property `PLANNER_KEY` (menu **Kata Tracker → Show the Lesson Planner key** makes and shows it; Gary pastes it into the planner's menu **Connect to the Kata Tracker…**). Called by the planner's script, never from a phone. Nothing else (no progress, no notes) is shared. `plannerMembers_`, `plannerKey_`, `menuPlannerKey_`.
 
 ## Sheet
 
@@ -76,7 +77,7 @@ Why two addresses: the page used to be served by Apps Script itself, but on phon
 ## Code map
 | File | Lines | What's in it |
 |---|---|---|
-| `Code.gs` | 930 | entry (`doGet`, `doPost`, `run_`, `dispatch_`); security (`sha256Hex_`, `hmacHex_`, `codeHash_`, `checkClock_`, `failGate_`, `newSession_`, `signIn_`, `session_`); temporary password (`passwordOn_`, `signInPassword_`, `setPassword_`); levels (`rank_`, `need_`, `isMod_`, `isAdmin_`, `visibleNames_`); actions (`getData_`, `requestChange_`, `withdrawRequest_`, `requestLink_`, `saveStatus_`, `saveMany_`, `decide_`, `undoDecision_`, `setLevel_`, `makeCode_`, `removeCode_`, `addPerson_`, `removeFamily_`); sheet reads (`readLog_`, `readKata_`, `readMembers_`, `readProgress_`, `readAccess_`, `readRequests_`, `getSettings_`); `kataSummary_` (the planner's `?api=summary`); `syncProgress_`; menu (`onOpen`, `menuMakeCode_`, `menuSignOutAll_`); `clientLog_` |
+| `Code.gs` | 962 | entry (`doGet`, `doPost`, `run_`, `dispatch_`); security (`sha256Hex_`, `hmacHex_`, `codeHash_`, `checkClock_`, `failGate_`, `newSession_`, `signIn_`, `session_`); temporary password (`passwordOn_`, `signInPassword_`, `setPassword_`); levels (`rank_`, `need_`, `isMod_`, `isAdmin_`, `visibleNames_`); actions (`getData_`, `requestChange_`, `withdrawRequest_`, `requestLink_`, `saveStatus_`, `saveMany_`, `decide_`, `undoDecision_`, `setLevel_`, `makeCode_`, `removeCode_`, `addPerson_`, `removeFamily_`); sheet reads (`readLog_`, `readKata_`, `readMembers_`, `readProgress_`, `readAccess_`, `readRequests_`, `getSettings_`); `kataSummary_` (the planner's `?api=summary`); `syncProgress_`; menu (`onOpen`, `menuMakeCode_`, `menuSignOutAll_`, `menuPlannerKey_`); planner names (`plannerMembers_`, `plannerKey_`); `clientLog_` |
 | `index.html` | 2171 | CSS (~14–400), markup (~402–421), one `<script>` (~422–2169) |
 
 Inside the `index.html` script, search for:
