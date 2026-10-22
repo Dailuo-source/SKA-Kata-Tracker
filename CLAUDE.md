@@ -1,7 +1,7 @@
 # SKA Kata Tracker — Brief
 
 > **Claude: read this first.** Open only the files a change touches; use the code map to jump to a function.
-> `index.html` (~150 KB) and `Code.gs` (~38 KB) are large: search for a function name (e.g. `grep -n "function render" index.html`) and read just that function.
+> `web/index.html` (~150 KB) and `Code.gs` (~38 KB) are large: search for a function name (e.g. `grep -n "function render" web/index.html`) and read just that function.
 > At the end of a work session, update **Status** and add one line to **Changelog** (keep about 5).
 
 Tracks which kata each member of **Scarborough Academy of Karate (SKA)** knows. Sits in the dojo's Wix site and works on phones (Gary: Samsung Android, Chrome).
@@ -10,7 +10,7 @@ Tracks which kata each member of **Scarborough Academy of Karate (SKA)** knows. 
 
 | Piece | Location |
 | --- | --- |
-| Live app | https://dailuo-source.github.io/SKA-Kata-Tracker/ (GitHub Pages from `main`, root, `.nojekyll`, no build). Never put Gary's full name in a web address |
+| Live app | https://dailuo-source.github.io/SKA-Kata-Tracker/ (GitHub Pages from `main`, no build; only `web/` is published, by `.github/workflows/pages.yml` (Settings → Pages → Source: GitHub Actions)). Never put Gary's full name in a web address |
 | Database | Google Sheet **S.A. Karate Kata Tracker** (garyluo.gs@gmail.com), id `1QYVdiW5kZ5j-EvSQzZJ-GE12ZqwY2OUgTsSIzIloiHk` |
 | Backend | Apps Script **Karate Kata List** bound to the sheet (id `111lCaHWu0gtPF8-jiEXuhYeEqizKrjg1Kh4eybj7NU7gigJ48_1eN8xD`); source is `Code.gs`. Web app: `https://script.google.com/macros/s/AKfycbwnmXKngbUjC-NAThAD_s7R2JdaKGX5e9R3cjJYdQlkEoWbe84nbdILOKVVsGiRbIlpqw/exec` (Execute as Gary, Anyone) |
 
@@ -64,17 +64,27 @@ The page is on GitHub Pages (not served by Apps Script) because multi-account ph
 
 ## Changing things
 
-- Page: edit `index.html`, commit, push to `main` (Pages publishes in ~1 min).
+- Page: edit `web/index.html`, commit, push to `main` (Pages publishes in ~1 min).
 - Code.gs: paste into the script project, **Deploy → Manage deployments → pencil → New version** (URL unchanged). Via Claude in Chrome (instance **GARYMAIN**): set `monaco.editor.getModels()[0]` to the raw GitHub `Code.gs` by commit SHA, Ctrl+S, redeploy. Reading from Monaco needs chunks under ~1,000 chars with `=`/`;`/`&`/`?` swapped out.
 - Before making it installable, move to Cloudflare Pages (project `ska-kata-tracker`; Pantry Pal shares this github.io origin) and update `SITE_URL` in Code.gs and `KATA_SITE` in the Lesson Planner.
 - Commits use author `Claude <noreply@anthropic.com>`.
 - Test harness (`gasmock.js` + Playwright) is not in the repo: its data has real member names.
 
+## Deploying Code.gs
+
+- Web app deployment ID: `AKfycbwnmXKngbUjC-NAThAD_s7R2JdaKGX5e9R3cjJYdQlkEoWbe84nbdILOKVVsGiRbIlpqw`. Always update this deployment so the /exec URL never changes.
+- From this folder, `.clasp.json` points clasp at the script project (rootDir is the repo root, where `Code.gs` is):
+  ```
+  clasp push
+  clasp deploy -i AKfycbwnmXKngbUjC-NAThAD_s7R2JdaKGX5e9R3cjJYdQlkEoWbe84nbdILOKVVsGiRbIlpqw -d "what changed"
+  ```
+- Never run `clasp deploy` without `-i`: that creates a new deployment with a new /exec URL. `clasp deployments` lists them.
+
 ## Code map
 | File | Lines | What's in it |
 |---|---|---|
 | `Code.gs` | 962 | entry (`doGet`, `doPost`, `run_`, `dispatch_`); security (`sha256Hex_`, `hmacHex_`, `codeHash_`, `checkClock_`, `failGate_`, `newSession_`, `signIn_`, `session_`); temp password (`passwordOn_`, `signInPassword_`, `setPassword_`); levels (`rank_`, `need_`, `isMod_`, `isAdmin_`, `visibleNames_`); actions (`getData_`, `requestChange_`, `withdrawRequest_`, `requestLink_`, `saveStatus_`, `saveMany_`, `decide_`, `undoDecision_`, `setLevel_`, `makeCode_`, `removeCode_`, `addPerson_`, `removeFamily_`); reads (`readLog_`, `readKata_`, `readMembers_`, `readProgress_`, `readAccess_`, `readRequests_`, `getSettings_`); `kataSummary_`; `syncProgress_`; menu (`onOpen`, `menuMakeCode_`, `menuSignOutAll_`, `menuPlannerKey_`); `plannerMembers_`, `plannerKey_`; `clientLog_` |
-| `index.html` | 2171 | CSS (~14–400), markup (~402–421), one `<script>` (~422–2169) |
+| `web/index.html` | 2171 | CSS (~14–400), markup (~402–421), one `<script>` (~422–2169) |
 
 Inside the `index.html` script, search for:
 - Transport: `request`, `call`, `viaFetch`, `viaScript`, `scriptGet`, `report`
@@ -96,6 +106,7 @@ Inside the `index.html` script, search for:
 - Open: remove the TEMPORARY PASSWORD once it's off; move to Cloudflare Pages before making it installable; later switch to the dojo website's sign-in.
 
 ## Changelog (latest first, keep about 5 lines)
+- 2026-10-21: Moved the site files into `web/`; only that folder is published
 - 2026-10-22: Trimmed this brief
 - 2026-10-21: Fallback route without cookies, falls back to fetch
 - 2026-10-21: Instructor level; Readiness for instructors and admins only; Members is the landing screen (script version 14)
