@@ -436,7 +436,7 @@ var LEVELS = ['Member', 'Moderator', 'Instructor', 'Admin'];
 var LEVEL_HINT = {
   Member: 'Sees only their own kata (and approved family members’). Can ask for changes.',
   Moderator: 'Approves requests, sees who knows every kata, uses the grid and changes anyone’s kata. No Readiness.',
-  Instructor: 'Everything except Access: a moderator’s tools plus Readiness.',
+  Instructor: 'Everything except Access: a moderator’s tools plus Readiness and adding members.',
   Admin: 'Everything, plus access levels, codes and family links.'
 };
 
@@ -1010,8 +1010,9 @@ function membersView() {
   var used = belts().filter(function (b) { return d.members.some(function (x) { return x.belt === b.name; }); }).map(function (b) { return b.name; });
   if (ms.belt !== 'All' && used.indexOf(ms.belt) === -1) ms.belt = 'All';
   var list = shownMembers();
+  var addBtn = canReady() ? '<button type="button" class="bigbtn" data-addmember style="min-height:44px">' + ICON.plus + 'Add member</button>' : '';
   var html = '<div class="pg-h"><div class="grow"><h1>Members</h1><div class="sub" id="mcount">' + esc(memberCountText(list.length)) + '</div></div>' +
-    (W ? '<div style="flex:0 1 260px">' + searchBox('Search members') + '</div>' : '') + '</div>' +
+    (W ? '<div style="flex:0 1 260px">' + searchBox('Search members') + '</div>' : '') + addBtn + '</div>' +
     (W ? '' : searchBox('Search members')) +
     '<div class="chips scroll" role="group" aria-label="Belt">' + ['All'].concat(used).map(function (b) {
       return '<button type="button" class="chip dark" data-mbelt="' + esc(b) + '" aria-pressed="' + (ms.belt === b) + '">' + (b === 'All' ? '' : dot(b)) + esc(b) + '</button>';
@@ -1047,6 +1048,18 @@ function memberRows() {
       esc((m.belt ? m.belt + ' belt · ' : '') + knownTotal(t) + ' kata known') + '</span></span>' + (l ? '<span class="lp">' + l + ' learning</span>' : '') +
       ICON.go.replace('<svg', '<svg class="go"') + '</button>';
   }).join('') + '</div>';
+}
+
+/** Instructors and admins add someone to the Members tab (Gary, Oct 22). */
+function openAddMember() {
+  openSheet('<div class="grab"></div><h2 id="sheetTitle">Add a member</h2><p>They go on the Members tab of the sheet, with an empty progress row.</p>' +
+    '<form id="memberForm" autocomplete="off"><div class="field"><label for="memName">Name</label><input class="inp" id="memName" maxlength="60" placeholder="e.g. Maya Chen, or J. Patel for juniors" data-focus></div>' +
+    '<div class="field"><label>Belt</label><div class="chips" id="memBelt" role="group" aria-label="Belt">' + belts().map(function (b, i) {
+      return '<button type="button" class="chip dark" data-addbelt="' + esc(b.name) + '" aria-pressed="' + (i === 0) + '">' + dot(b.name) + esc(b.name) + '</button>';
+    }).join('') + '</div></div>' +
+    '<p class="hint" style="margin:0 0 8px">Juniors are listed by first initial and surname.</p>' +
+    '<div class="ferr" id="memErr" aria-live="polite"></div>' +
+    '<div class="btnrow"><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary" id="memGo">Add member</button></div></form>');
 }
 
 /** One member: status counts and their kata, each with Learning / Knows / Proficient buttons. */
@@ -2024,6 +2037,8 @@ document.addEventListener('click', function (e) {
   else if (d.mbelt) { ms.belt = d.mbelt; render(); }
   else if (d.msort) { ms.sort = d.msort; store('kt.msort', d.msort); render(); }
   else if (d.msall !== undefined) { ms.all = !ms.all; render(); }
+  else if (d.addmember !== undefined) { openAddMember(); }
+  else if (d.addbelt) { Array.prototype.forEach.call(t.parentNode.children, function (b) { b.setAttribute('aria-pressed', b === t ? 'true' : 'false'); }); }
   else if (d.lf) { ov.lf = d.lf; ov.open = null; render(); }
   else if (d.lopen) { ov.open = ov.open === d.lopen ? null : d.lopen; render(); }
   else if (d.cell) { var ix = d.cell.split(':'); gStep(+ix[0], +ix[1]); }
@@ -2105,6 +2120,19 @@ document.addEventListener('submit', function (e) {
       state.data.myLinks = (state.data.myLinks || []).filter(function (n) { return n !== res.member; }).concat([res.member]);
       cacheData(); closeSheet(); render(); toast('Sent. An admin will check it.');
     }).catch(function (err) { $('linkErr').textContent = errMsg(err); $('linkSend').disabled = false; });
+  }
+  if (f.id === 'memberForm') {
+    var mn = $('memName').value.trim().replace(/\s+/g, ' '), mb = $('memBelt').querySelector('[aria-pressed=true]');
+    if (!mn) { $('memErr').textContent = 'Type their name.'; return; }
+    $('memGo').disabled = true; $('memErr').textContent = '';
+    call('addMember', mn, mb ? mb.dataset.addbelt : '').then(function (res) {
+      state.data.members = state.data.members.concat([{ name: res.name, belt: res.belt }]);
+      state.data.progress[res.name] = state.data.progress[res.name] || {};
+      cacheData(); hideSheet();
+      state.member = res.name; state.query = ''; ms.belt = 'All';
+      try { history.replaceState(snapshot(), ''); } catch (x) {}
+      render(); toast('Added ' + res.name);
+    }).catch(function (err) { $('memErr').textContent = errMsg(err); $('memGo').disabled = false; });
   }
   if (f.id === 'addForm') {
     var n = $('addName').value.trim(), lvBtn = $('addLevel').querySelector('[aria-pressed=true]');

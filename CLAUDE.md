@@ -23,7 +23,7 @@ The page is on GitHub Pages (not served by Apps Script) because multi-account ph
 | Signed out | Kata list only (no names, no counts) |
 | **Member** | Own kata (plus linked family); **asks** for Learning / Knows / Proficient with a note; can withdraw; asks to link family. Never sees others or readiness |
 | **Moderator** | Members, Kata, Grid, Overview, Requests (approve/decline + Undo); changes statuses. **No Readiness** |
-| **Instructor** | Everything except Access (moderator screens + **Readiness**) |
+| **Instructor** | Everything except Access (moderator screens + **Readiness** + **Add member**) |
 | **Admin** | Everything, plus **Access**: levels, access codes, family links, add people, turn off the temporary password |
 
 - Sign-in: personal **access code** (6 chars like `K7P-4QX`, no 0/O/1/I/L). Sign-in checks `SHA-256("ska-kata:" + CODE)` (Code hash). Since Oct 22 the code itself is also saved in the Access tab's **Code** column (Gary's choice, so a lost code can be given out again); admins see it in Access (person panel, Copy). Codes made before then show "can't be shown" until a new one is made. Only admins get `access` or `sheetUrl` (the "Open the sheet" link). New/removed code signs that person out. Sheet menu **Kata Tracker → Make an access code…** also makes one. **Sign everyone out** rotates `TOKEN_SECRET`. Gary later wants the dojo website's sign-in instead.
@@ -35,7 +35,7 @@ The page is on GitHub Pages (not served by Apps Script) because multi-account ph
 - Every call is `{action, a, t, p, h}` → `{ok, result}` / `{ok:false, error}`, as a `text/plain` POST, or fallback `GET ?api=rpc&callback=fn&…` (JSONP-style, `<script crossOrigin='anonymous'>`; Gary's Android Chrome never gets fetch replies, so the page switches after one failure and returns to fetch when it works). `a` = JSON args, `t` = phone clock (ms, within 15 min).
 - `signIn`: `h` = SHA-256(`t:` + SHA-256(`ska-kata:` + CODE)) → `{p, k, name, level}`; `p` = session (400 days), `k` = HMAC of `p` with `TOKEN_SECRET`, stored as `kt.session` (sessionStorage if "Keep me signed in" is off). Signed calls send `p` and `h` = SHA-256(`t:k:action:a`); no secret is ever in a URL. Level is re-read from Access every call. `SIGNED_OUT:` errors sign the page out.
 - `getData`: only what the level may see. Members: `members`/`progress` (self + family), `myRequests`, `myLinks`; moderators add `requests`, `recent`, `log` (newest 600); admins add `linkRequests`, `access`, `sheetUrl`.
-- Member: `requestChange`, `withdrawRequest`, `requestLink`. Moderator: `saveStatus`, `saveMany` (≤40; page sends 15, falls back to `saveStatus`), `decide`, `undoDecision`. Admin: `setLevel`, `makeCode`, `removeCode`, `addPerson`, `removeFamily`, `setPassword(false)`.
+- Member: `requestChange`, `withdrawRequest`, `requestLink`. Moderator: `saveStatus`, `saveMany` (≤40; page sends 15, falls back to `saveStatus`), `decide`, `undoDecision`. Instructor: `addMember(name, belt)` (appends to Members with Active = Yes and a note, adds the Progress row; refuses duplicates and says when one is set to Active = No). Admin: `setLevel`, `makeCode`, `removeCode`, `addPerson`, `removeFamily`, `setPassword(false)`.
 - 10 wrong codes pause sign-in 15 min. `clientLog` (via `sendBeacon`) logs "Kata Tracker page problem" to Executions.
 - `GET ?api=summary`: kata with rank, Learned at and count still needing it (counts only), for the SKA Lesson Planner.
 - `POST {action:'plannerMembers', key}`: active members' names and belts for the planner; only if `key` = Script Property `PLANNER_KEY` (menu **Show the Lesson Planner key**). Nothing else is shared.
@@ -106,6 +106,7 @@ Inside the `index.html` script, search for:
 - Open: remove the TEMPORARY PASSWORD once it's off; move to Cloudflare Pages before making it installable; later switch to the dojo website's sign-in.
 
 ## Changelog (latest first, keep about 5 lines)
+- 2026-10-22: Add member (instructors and admins) on the Members screen
 - 2026-10-22: Access codes saved on the Access tab (Code column) and shown to admins in Access (script version 15)
 - 2026-10-21: Moved the site files into `web/`; only that folder is published
 - 2026-10-22: Trimmed this brief

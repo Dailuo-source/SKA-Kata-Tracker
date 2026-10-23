@@ -8,7 +8,7 @@
  *   Signed out  – the dojo's kata list only.
  *   Member      – their own kata (and approved family members'); can ask for changes.
  *   Moderator   – everyone's kata, makes changes, approves requests (no Readiness).
- *   Instructor  – everything except Access (adds Readiness).
+ *   Instructor  – everything except Access (adds Readiness, adding members).
  *   Admin       – everything, plus access levels, access codes and family links.
  * People sign in with a personal access code (Access tab). The old shared instructor
  * password still works as Moderator access for now (see TEMPORARY PASSWORD below).
@@ -132,6 +132,7 @@ function dispatch_(r) {
   var fns = {
     saveStatus: [saveStatus_, 'Moderator'],
     saveMany: [saveMany_, 'Moderator'],
+    addMember: [addMember_, 'Instructor'],
     requestChange: [requestChange_, 'Member'],
     withdrawRequest: [withdrawRequest_, 'Member'],
     requestLink: [requestLink_, 'Member'],
@@ -414,6 +415,31 @@ function requestLink_(ss, s, member) {
 
 function saveStatus_(ss, s, member, kata, status) {
   return saveStatusChecked_(member, kata, status, s.name);
+}
+
+/** Instructors and admins add a member: a new row on the Members tab (Active = Yes) and on Progress. */
+function addMember_(ss, s, name, belt) {
+  name = str_(name).replace(/\s+/g, ' ').replace(/,/g, ' ');
+  belt = str_(belt);
+  if (!name || name.length > 60) throw new Error('Type their name (up to 60 letters).');
+  if (!getSettings_().belts.some(function (b) { return b.name === belt; })) throw new Error('Pick their belt.');
+  return withLock_(function () {
+    var sh = ss.getSheetByName(TAB.MEMBERS);
+    var v = sh.getDataRange().getValues(), h = v[0].map(str_), ni = h.indexOf('Name');
+    var same = v.slice(1).filter(function (r) { return str_(r[ni]).toLowerCase() === name.toLowerCase(); })[0];
+    if (same) {
+      var ai = h.indexOf('Active');
+      throw new Error(name + (ai >= 0 && str_(same[ai]).toLowerCase() === 'no'
+        ? ' is already on the Members tab but set to Active = No. Change it to Yes there.'
+        : ' is already a member.'));
+    }
+    sh.appendRow(h.map(function (k) {
+      return k === 'Name' ? name : k === 'Belt' ? belt : k === 'Active' ? 'Yes' : k === 'Notes' ? 'Added in the app by ' + s.name : '';
+    }));
+    syncProgress_(ss, true);
+    SpreadsheetApp.flush();
+    return { name: name, belt: belt };
+  });
 }
 
 /** The progress grid's Save: several [member, kata, status] changes under one lock. */
