@@ -1853,7 +1853,7 @@ function openPerson(name) {
   var c = state.confirm && state.confirm.name === name ? state.confirm.what : '';
   var code;
   if (state.newCode && state.newCode.name === name) {
-    code = '<div class="codebox"><b>' + esc(state.newCode.code) + '</b><span>Give this to ' + esc(first(name)) + ' now. It’s only shown once.</span>' +
+    code = '<div class="codebox"><b>' + esc(state.newCode.code) + '</b><span>Give this to ' + esc(first(name)) + '. It’s saved, so you can find it here again.</span>' +
       '<button type="button" class="btn" data-copy="' + esc(state.newCode.code) + '">Copy</button></div>';
   } else if (c === 'code') {
     code = '<div class="warn">A new code stops the old one working straight away, and signs ' + esc(first(name)) + ' out everywhere.</div>' +
@@ -1862,7 +1862,11 @@ function openPerson(name) {
     code = '<div class="warn">' + esc(first(name)) + ' won’t be able to sign in until you make a new code.</div>' +
       '<div class="btnrow"><button type="button" class="btn" data-cno>Cancel</button><button type="button" class="btn primary" data-rmcode="' + esc(name) + '">Remove code</button></div>';
   } else if (p.hasCode) {
-    code = '<div class="frow"><span class="grow">Made ' + esc(shortDate(p.made)) + '. It isn’t shown again.</span><button type="button" class="btn" data-cask="code">Make a new code</button></div>' +
+    // Codes are saved on the Access tab since Oct 22 (Gary), so admins can give one out again.
+    code = (p.code
+      ? '<div class="codebox"><b>' + esc(p.code) + '</b><span>Made ' + esc(shortDate(p.made)) + '. Only admins can see this.</span><button type="button" class="btn" data-copy="' + esc(p.code) + '">Copy</button></div>'
+      : '<div class="hint" style="margin:0">Made ' + esc(shortDate(p.made)) + ', before codes were saved, so it can’t be shown. Make a new code to see it here.</div>') +
+      '<div class="frow"><span class="grow"></span><button type="button" class="btn" data-cask="code">Make a new code</button></div>' +
       '<button type="button" class="linkbtn" style="align-self:flex-start" data-cask="remove">Remove code</button>';
   } else {
     code = '<div class="frow"><span class="grow">No code yet</span><button type="button" class="btn primary" data-makecode="' + esc(name) + '">Make a code</button></div>';
@@ -1891,7 +1895,7 @@ function makeCode(name) {
   state.confirm = null;
   call('makeCode', name).then(function (res) {
     var p = personByName(name);
-    if (p) { p.hasCode = true; p.made = nowLocal(); }
+    if (p) { p.hasCode = true; p.made = nowLocal(); p.code = res.code; }
     state.newCode = { name: name, code: res.code };
     openPerson(name); render();
   }).catch(function (e) { openPerson(name); personErr(e); });
@@ -1899,7 +1903,7 @@ function makeCode(name) {
 function removeCode(name) {
   state.confirm = null;
   call('removeCode', name).then(function () {
-    var p = personByName(name); if (p) { p.hasCode = false; p.made = ''; }
+    var p = personByName(name); if (p) { p.hasCode = false; p.made = ''; p.code = ''; }
     openPerson(name); render();
   }).catch(function (e) { openPerson(name); personErr(e); });
 }

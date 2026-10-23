@@ -27,7 +27,9 @@ var TAB = {
   ACCESS: 'Access',
   REQUESTS: 'Requests'
 };
-var ACCESS_HEAD = ['Name', 'Level', 'Code hash', 'Code made', 'Family', 'Last signed in', 'Notes'];
+// Code (Gary, Oct 22): the access code itself, so an admin can give it out again. Only admins see it in the app;
+// anyone the sheet is shared with can see it on the Access tab.
+var ACCESS_HEAD = ['Name', 'Level', 'Code hash', 'Code made', 'Family', 'Last signed in', 'Notes', 'Code'];
 var REQ_HEAD = ['ID', 'Time', 'Type', 'Member', 'Kata', 'From', 'To', 'Note', 'Sent by', 'State', 'Decided by', 'Decided at', 'Was'];
 var LEVELS = ['Member', 'Moderator', 'Instructor', 'Admin'];
 
@@ -347,6 +349,7 @@ function person_(name, belt, onList, a) {
     name: name, belt: belt, onList: onList,
     level: a ? a.level : 'Member',
     hasCode: !!(a && a.hash),
+    code: a && a.hash ? a.code : '',
     made: a && a.hash ? fmtDate_(a.made) : '',
     lastSeen: a ? fmtDate_(a.last) : '',
     family: a ? a.family : [],
@@ -485,8 +488,10 @@ function makeCode_(ss, s, name) {
     var a = rows.filter(function (x) { return x.name === name; })[0];
     var row = a ? a.row : addAccessRow_(ss, name, readMembers_(ss));
     var sh = ss.getSheetByName(TAB.ACCESS);
+    var shown = code.slice(0, 3) + '-' + code.slice(3);
     sh.getRange(row, ACCESS_HEAD.indexOf('Code hash') + 1, 1, 2).setValues([[hash, new Date()]]);
-    return { name: name, code: code.slice(0, 3) + '-' + code.slice(3) };
+    sh.getRange(row, ACCESS_HEAD.indexOf('Code') + 1).setValue(shown);
+    return { name: name, code: shown };
   });
 }
 
@@ -499,7 +504,9 @@ function removeCode_(ss, s, name) {
     if (a.level === 'Admin' && rows.filter(function (x) { return x.level === 'Admin' && x.hash; }).length <= 1) {
       throw new Error('This is the only admin code. Make someone else an admin first.');
     }
-    ss.getSheetByName(TAB.ACCESS).getRange(a.row, ACCESS_HEAD.indexOf('Code hash') + 1, 1, 2).setValues([['', '']]);
+    var sh = ss.getSheetByName(TAB.ACCESS);
+    sh.getRange(a.row, ACCESS_HEAD.indexOf('Code hash') + 1, 1, 2).setValues([['', '']]);
+    sh.getRange(a.row, ACCESS_HEAD.indexOf('Code') + 1).setValue('');
     return { name: name };
   });
 }
@@ -637,7 +644,7 @@ function menuMakeCode_() {
   var res = makeCode_(ss, admin, name);
   SpreadsheetApp.flush();   // save the code before the pop-up, which can stay open for minutes
   ui.alert('Access code for ' + name,
-    res.code + '\n\nLevel: ' + level + '\nGive this to them now. It isn’t stored and won’t be shown again. ' +
+    res.code + '\n\nLevel: ' + level + '\nGive this to them now. It’s also saved in the Code column of this Access tab, and admins can see it in the app’s Access screen. ' +
     'They sign in at ' + SITE_URL, ui.ButtonSet.OK);
 }
 
@@ -679,10 +686,16 @@ function menuPlannerKey_() {
 
 function ensureTabs_(ss) {
   [[TAB.ACCESS, ACCESS_HEAD], [TAB.REQUESTS, REQ_HEAD]].forEach(function (t) {
-    if (ss.getSheetByName(t[0])) return;
-    var sh = ss.insertSheet(t[0]);
-    sh.getRange(1, 1, 1, t[1].length).setValues([t[1]]).setFontWeight('bold');
-    sh.setFrozenRows(1);
+    var sh = ss.getSheetByName(t[0]);
+    if (!sh) {
+      sh = ss.insertSheet(t[0]);
+      sh.getRange(1, 1, 1, t[1].length).setValues([t[1]]).setFontWeight('bold');
+      sh.setFrozenRows(1);
+      return;
+    }
+    // A tab made before a column was added gets the missing header (e.g. Access → Code).
+    var last = t[1].length, head = sh.getRange(1, last);
+    if (!str_(head.getValue())) head.setValue(t[1][last - 1]).setFontWeight('bold');
   });
 }
 
@@ -703,7 +716,8 @@ function readAccess_(ss) {
       hash: str_(v[r][col('Code hash')]).toLowerCase(),
       made: v[r][col('Code made')],
       family: str_(v[r][col('Family')]).split(',').map(str_).filter(String),
-      last: v[r][col('Last signed in')]
+      last: v[r][col('Last signed in')],
+      code: col('Code') >= 0 ? str_(v[r][col('Code')]) : ''
     });
   }
   return out;

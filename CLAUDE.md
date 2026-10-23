@@ -26,7 +26,7 @@ The page is on GitHub Pages (not served by Apps Script) because multi-account ph
 | **Instructor** | Everything except Access (moderator screens + **Readiness**) |
 | **Admin** | Everything, plus **Access**: levels, access codes, family links, add people, turn off the temporary password |
 
-- Sign-in: personal **access code** (6 chars like `K7P-4QX`, no 0/O/1/I/L). Shown once; only `SHA-256("ska-kata:" + CODE)` is stored. New/removed code signs that person out. Sheet menu **Kata Tracker → Make an access code…** also makes one. **Sign everyone out** rotates `TOKEN_SECRET`. Gary later wants the dojo website's sign-in instead.
+- Sign-in: personal **access code** (6 chars like `K7P-4QX`, no 0/O/1/I/L). Sign-in checks `SHA-256("ska-kata:" + CODE)` (Code hash). Since Oct 22 the code itself is also saved in the Access tab's **Code** column (Gary's choice, so a lost code can be given out again); admins see it in Access (person panel, Copy). Codes made before then show "can't be shown" until a new one is made. Only admins get `access` or `sheetUrl` (the "Open the sheet" link). New/removed code signs that person out. Sheet menu **Kata Tracker → Make an access code…** also makes one. **Sign everyone out** rotates `TOKEN_SECRET`. Gary later wants the dojo website's sign-in instead.
 - Can't remove or demote the last admin who has a code.
 - **TEMPORARY PASSWORD**: Settings B3 still signs in as Moderator until an admin taps **Turn it off** (Script Property `PASSWORD_OFF` = 1). To be removed later: search both files for `TEMPORARY PASSWORD`.
 
@@ -46,7 +46,7 @@ The page is on GitHub Pages (not served by Apps Script) because multi-account ph
 - **Members**: Name, Belt, Active (No hides, keeps history), Notes. Juniors are initial + surname on purpose.
 - **Progress**: row per member, column per kata (A Member, B Belt via ARRAYFORMULA). Menu **Sync progress** adds missing rows/columns.
 - **Log**: every app change (time, member, kata, status, who; approvals end "(request)").
-- **Access** (auto): Name, Level, Code hash, Code made, Family, Last signed in, Notes. No row = Member without a code. Deleting a row signs them out.
+- **Access** (auto): Name, Level, Code hash, Code made, Family, Last signed in, Notes, Code (added to an existing tab's header automatically). No row = Member without a code. Deleting a row signs them out.
 - **Requests** (auto): ID, Time, Type (Kata / Family), Member, Kata, From, To, Note, Sent by, State, Decided by, Decided at, Was (for Undo).
 - **Settings**: Dojo name B2, password B3, statuses D2:D10 (anything after the first counts as knowing), belts with colours from row 7.
 
@@ -106,6 +106,7 @@ Inside the `index.html` script, search for:
 - Open: remove the TEMPORARY PASSWORD once it's off; move to Cloudflare Pages before making it installable; later switch to the dojo website's sign-in.
 
 ## Changelog (latest first, keep about 5 lines)
+- 2026-10-22: Access codes saved on the Access tab (Code column) and shown to admins in Access
 - 2026-10-21: Moved the site files into `web/`; only that folder is published
 - 2026-10-22: Trimmed this brief
 - 2026-10-21: Fallback route without cookies, falls back to fetch
