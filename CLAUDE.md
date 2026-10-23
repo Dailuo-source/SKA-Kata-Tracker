@@ -102,11 +102,11 @@ Inside the `index.html` script, search for:
 - Panels: `openSheet`, `closeSheet`, `openChooser`, `askChange`, `save`, `toast`, `backToPlanner`
 
 ## Status
-- Working: all screens, per-person access codes with four levels, requests and approvals, Readiness, phone fallback route, Lesson Planner link. Script version 14.
+- Working: all screens, per-person access codes with four levels, requests and approvals, Readiness, phone fallback route, Lesson Planner link, Add member. Script version 16.
 - Open: remove the TEMPORARY PASSWORD once it's off; move to Cloudflare Pages before making it installable; later switch to the dojo website's sign-in.
 
 ## Changelog (latest first, keep about 5 lines)
-- 2026-10-22: Add member (instructors and admins) on the Members screen
+- 2026-10-23: Add member (instructors and admins) on the Members screen (script version 16)
 - 2026-10-22: Access codes saved on the Access tab (Code column) and shown to admins in Access (script version 15)
 - 2026-10-21: Moved the site files into `web/`; only that folder is published
 - 2026-10-22: Trimmed this brief
