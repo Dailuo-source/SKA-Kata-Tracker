@@ -106,7 +106,7 @@ Inside the `index.html` script, search for:
 - Open: remove the TEMPORARY PASSWORD once it's off; move to Cloudflare Pages before making it installable; later switch to the dojo website's sign-in.
 
 ## Changelog (latest first, keep about 5 lines)
-- 2026-10-22: Access codes saved on the Access tab (Code column) and shown to admins in Access
+- 2026-10-22: Access codes saved on the Access tab (Code column) and shown to admins in Access (script version 15)
 - 2026-10-21: Moved the site files into `web/`; only that folder is published
 - 2026-10-22: Trimmed this brief
 - 2026-10-21: Fallback route without cookies, falls back to fetch
