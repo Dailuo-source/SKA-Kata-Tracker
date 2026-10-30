@@ -935,6 +935,7 @@ function submitSignIn(form) {
     render();
     toast('Signed in as ' + res.name);
     load();
+    if (state.addFromPlanner && canReady()) { state.tab = 'members'; render(); setTimeout(openAddMember, 250); }
   }).catch(function (e) { err.textContent = errMsg(e); btn.disabled = false; });
 }
 function saveSession(s, keep) {
@@ -2131,7 +2132,11 @@ document.addEventListener('submit', function (e) {
       cacheData(); hideSheet();
       state.member = res.name; state.query = ''; ms.belt = 'All';
       try { history.replaceState(snapshot(), ''); } catch (x) {}
-      render(); toast('Added ' + res.name);
+      render();
+      if (state.addFromPlanner) {
+        openSheet('<div class="grab"></div><h2 id="sheetTitle">Added ' + esc(res.name) + '</h2><p>They’ll show up in the Lesson Planner’s student list when you go back.</p>' +
+          '<div class="btnrow"><button type="button" class="btn" data-addmember>Add another</button><button type="button" class="btn primary" data-planner>Back to the lesson plan</button></div>');
+      } else toast('Added ' + res.name);
     }).catch(function (err) { $('memErr').textContent = errMsg(err); $('memGo').disabled = false; });
   }
   if (f.id === 'addForm') {
@@ -2195,6 +2200,13 @@ var link = null; // ?kata=…&from=planner, from the Lesson Planner's after-clas
 function applyLink() {
   if (!link || !state.data) return;
   var l = link; link = null;
+  // From the Lesson Planner's Student notes: straight to Add a member (instructors and admins).
+  if (l.add) {
+    state.addFromPlanner = true;
+    if (canReady()) { state.tab = 'members'; state.member = null; render(); setTimeout(openAddMember, 150); }
+    else setTimeout(function () { openSignIn('Sign in with an instructor or admin code to add a new student.'); }, 200);
+    return;
+  }
   if (l.kata && kataByName(l.kata)) {
     state.fromPlanner = l.from === 'planner';
     state.tab = 'kata'; state.kata = l.kata; state.member = null;
@@ -2217,6 +2229,7 @@ function applyLink() {
   }
   state.tab = homeTab();
   if (PARAMS.get('kata')) { link = { kata: PARAMS.get('kata'), from: PARAMS.get('from') || '' }; applyLink(); }
+  else if (PARAMS.get('add') === 'member') { link = { add: true }; applyLink(); }
   // Tidy the address bar (the kata link has been read); back from the first screen leaves the site.
   try { history.replaceState(snapshot(), '', location.pathname); } catch (e) {}
   render();
