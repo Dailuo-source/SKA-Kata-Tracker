@@ -57,6 +57,8 @@ The page is on GitHub Pages (not served by Apps Script) because multi-account ph
 - Tabs: signed out = Kata only. Member = **My kata**, **Kata**. Moderator = **Members** (landing), **Kata**, **Grid**, **Overview**. Instructor/Admin add **Readiness** (higher-level screens on the right). **Requests** = speech-bubble header button with badge. Admin **Access** in the account panel (phone) / top bar (wide).
 - Readiness lives only on Readiness (not Overview or Members). Rule: every kata with Learned at ≤ member's belt must be Knows/Proficient; White and Black belts have no check; Empi Yonin Dori is ranked Purple but learned at Green.
 - Members: default sort belt highest first, then **last name** (`kt.msort`). Status changes ask "are you sure" + Undo.
+- **Ticking several** (moderators and up): a kata's page has a tick box per member, a member's page one per kata (same 22px box everywhere, also used by "Keep me signed in"). Ticking shows a dark bar with the statuses + Clear; one confirm, saved with `saveMany`, Undo. Ticks clear when you leave the page or the row leaves the list.
+- Compact layout (Gary keeps asking for less vertical space). Every tap gets a squish and a ring at the finger (`pointerdown` handler; the ring sits on `<body>` so it survives a redraw).
 - Grid: tap steps blank → L → K → P; edits outlined until one **Save** (Undo after). Filters remembered as `kt.grid`. Family = name without trailing Shodan/Nidan/…/Dai/Sho.
 - Kata tab: **Solo**, then **Multi-person**, then **Weapon**, each grouped by Learned at (else rank).
 - Opens from cache `kt.data` (only for the same signed-in person); sign-out drops all but the kata list. Old `kt.pin` is wiped on load. Screens and panels are history steps.
@@ -84,7 +86,7 @@ The page is on GitHub Pages (not served by Apps Script) because multi-account ph
 | File | Lines | What's in it |
 |---|---|---|
 | `Code.gs` | 962 | entry (`doGet`, `doPost`, `run_`, `dispatch_`); security (`sha256Hex_`, `hmacHex_`, `codeHash_`, `checkClock_`, `failGate_`, `newSession_`, `signIn_`, `session_`); temp password (`passwordOn_`, `signInPassword_`, `setPassword_`); levels (`rank_`, `need_`, `isMod_`, `isAdmin_`, `visibleNames_`); actions (`getData_`, `requestChange_`, `withdrawRequest_`, `requestLink_`, `saveStatus_`, `saveMany_`, `decide_`, `undoDecision_`, `setLevel_`, `makeCode_`, `removeCode_`, `addPerson_`, `removeFamily_`); reads (`readLog_`, `readKata_`, `readMembers_`, `readProgress_`, `readAccess_`, `readRequests_`, `getSettings_`); `kataSummary_`; `syncProgress_`; menu (`onOpen`, `menuMakeCode_`, `menuSignOutAll_`, `menuPlannerKey_`); `plannerMembers_`, `plannerKey_`; `clientLog_` |
-| `web/index.html` | 2171 | CSS (~14–400), markup (~402–421), one `<script>` (~422–2169) |
+| `web/index.html` | 2387 | CSS (~14–400), markup (~402–421), one `<script>` (~422–2169) |
 
 Inside the `index.html` script, search for:
 - Transport: `request`, `call`, `viaFetch`, `viaScript`, `scriptGet`, `report`
@@ -100,22 +102,21 @@ Inside the `index.html` script, search for:
 - Access: `accessView`, `accessRows`, `openPerson`, `setLevel`, `makeCode`, `removeCode`, `openAddPerson`, `askPasswordOff`
 - Sign-in: `signInForm`, `submitSignIn`, `saveSession`, `signOut`, `openAccount`
 - Panels: `openSheet`, `closeSheet`, `openChooser`, `askChange`, `save`, `toast`, `backToPlanner`
+- Ticking several: `bulk`, `bulkCtx`, `cbx`, `selBar`, `bulkToggle`, `renderBulk`, `bulkAsk`, `saveChanges` (shared with `gSave`)
 
 ## Status
-- Working: all screens, per-person access codes with four levels, requests and approvals, Readiness, phone fallback route, Lesson Planner link, Add member. Script version 16.
+- Working: all screens, per-person access codes with four levels, requests and approvals, Readiness, phone fallback route, Lesson Planner link, Add member, ticking several rows to set one status. Script version 16.
 - Open: remove the TEMPORARY PASSWORD once it's off; move to Cloudflare Pages before making it installable; later switch to the dojo website's sign-in.
 
 - Lesson Planner **Add a new student**: `?add=member&from=planner` opens Members and the Add a member form (asks for an instructor/admin code first if needed); after adding it offers **Add another** / **Back to the lesson plan** (Oct 30, page only).
 
 ## Changelog (latest first, keep about 5 lines)
+- 2026-11-02: Tap animation, tighter spacing everywhere, same-size tick boxes, tick several members/kata and set one status (page only)
 - 2026-10-30: `?add=member&from=planner` link for the Lesson Planner's Add a new student
 - 2026-10-23: Add member (instructors and admins) on the Members screen (script version 16)
 - 2026-10-22: Access codes saved on the Access tab (Code column) and shown to admins in Access (script version 15)
 - 2026-10-21: Moved the site files into `web/`; only that folder is published
 - 2026-10-22: Trimmed this brief
-- 2026-10-21: Fallback route without cookies, falls back to fetch
-- 2026-10-21: Instructor level; Readiness for instructors and admins only; Members is the landing screen (script version 14)
-- 2026-10-21: Desktop/Wix layout; Overview, Grid and Readiness screens
 
 ## Working efficiently
 - Find code with search first, then read only the relevant lines. Don't read index.html top to bottom.
