@@ -29,7 +29,11 @@ var TAB = {
 };
 // Code (Gary, Oct 22): the access code itself, so an admin can give it out again. Only admins see it in the app;
 // anyone the sheet is shared with can see it on the Access tab.
-var ACCESS_HEAD = ['Name', 'Level', 'Code hash', 'Code made', 'Family', 'Last signed in', 'Notes', 'Code'];
+// Wix ID / Email (Nov 2026): the dojo website account a person signs in with. Phone app: 'Yes' lets them
+// use the tracker on its own (outside the website); off for everyone but Gary for now (dojo phone policy).
+var ACCESS_HEAD = ['Name', 'Level', 'Code hash', 'Code made', 'Family', 'Last signed in', 'Notes', 'Code', 'Wix ID', 'Email', 'Phone app'];
+var FROM_WEB = 'From the website';         // Notes on an Access row made by a first website sign-in
+var PASS_MAX_MS = 5 * 60 * 1000;           // a website pass is good for 5 minutes, once
 var REQ_HEAD = ['ID', 'Time', 'Type', 'Member', 'Kata', 'From', 'To', 'Note', 'Sent by', 'State', 'Decided by', 'Decided at', 'Was'];
 var LEVELS = ['Member', 'Moderator', 'Instructor', 'Admin'];
 
@@ -113,6 +117,7 @@ function dispatch_(r) {
   if (action === 'clientLog') return clientLog_(args[0]);
   if (action === 'signIn') return signIn_(r.t, r.h);
   if (action === 'signInPassword') return signInPassword_(r.t, r.h, args[0]);
+  if (action === 'wixSignIn') return wixSignIn_(args[0]);
 
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   ensureTabs_(ss);
@@ -136,6 +141,8 @@ function dispatch_(r) {
     requestChange: [requestChange_, 'Member'],
     withdrawRequest: [withdrawRequest_, 'Member'],
     requestLink: [requestLink_, 'Member'],
+    askLevel: [askLevel_, 'Member'],
+    connectWix: [connectWix_, 'Member'],
     decide: [decide_, 'Moderator'],
     undoDecision: [undoDecision_, 'Moderator'],
     setLevel: [setLevel_, 'Admin'],
@@ -143,6 +150,7 @@ function dispatch_(r) {
     removeCode: [removeCode_, 'Admin'],
     addPerson: [addPerson_, 'Admin'],
     removeFamily: [removeFamily_, 'Admin'],
+    setPhoneApp: [setPhoneApp_, 'Admin'],
     setPassword: [setPassword_, 'Admin']
   };
   var f = fns[action];
@@ -254,8 +262,144 @@ function session_(ss, r, action, aText) {
     return { name: data.n, level: 'Moderator', password: true, family: [], hasRow: false };
   }
   var row = readAccess_(ss).filter(function (a) { return a.name === data.n; })[0];
-  if (!row || !row.hash || row.hash.slice(0, 12) !== data.c) throw new Error(bad);
-  return { name: row.name, level: row.level, password: false, family: row.family, hasRow: true };
+  var c = String(data.c), web = /^w[xp]:/.test(c);
+  if (web) {
+    var via = c.charAt(1) === 'p' ? 'phone' : 'wix';
+    if (!row || !row.wixId || wixCheck_(row.wixId, via) !== c) throw new Error(bad);
+    if (via === 'phone' && !row.phone) throw new Error('SIGNED_OUT: The phone app is turned off for you. Use the Kata Tracker on the dojo website.');
+    return { name: row.name, level: row.level, password: false, family: row.family, hasRow: true, via: via, wixId: row.wixId, phone: row.phone };
+  }
+  if (!row || !row.hash || row.hash.slice(0, 12) !== c) throw new Error(bad);
+  return { name: row.name, level: row.level, password: false, family: row.family, hasRow: true, via: 'code', wixId: row.wixId, phone: row.phone };
+}
+
+/* ---------- Signing in with the dojo website (Wix) ----------
+ * The Wix site's backend code (wix/backend/kataTracker.web.js) signs a short pass for the
+ * logged-in Wix member with the shared key WIX_KEY (Script property here, secret
+ * KATA_TRACKER_KEY in Wix's Secrets Manager). pass = base64url(JSON) + "." + hex HMAC-SHA256.
+ * JSON: { id: Wix member ID, name, email, via: 'wix' | 'phone', exp: ms, n: random }.
+ * The key never reaches a browser, so a page can't make its own pass. */
+function wixKey_() { return PropertiesService.getScriptProperties().getProperty('WIX_KEY') || ''; }
+function wixCheck_(wixId, via) { return (via === 'phone' ? 'wp:' : 'wx:') + sha256Hex_('wix:' + wixId).slice(0, 12); }
+function pad64_(b) { b = str_(b); while (b.length % 4) b += '='; return b; }
+
+function readPass_(pass) {
+  var key = wixKey_(), bad = 'That website sign-in didn’t work. Try again from the dojo website.';
+  if (!key) throw new Error('Signing in with the dojo website isn’t set up yet.');
+  var fails = failGate_();
+  var parts = str_(pass).split('.');
+  if (parts.length !== 2 || hex_(Utilities.computeHmacSha256Signature(parts[0], key)) !== parts[1].toLowerCase()) failed_(fails, bad);
+  var d;
+  try { d = JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(pad64_(parts[0]))).getDataAsString('UTF-8')); }
+  catch (e) { throw new Error(bad); }
+  var now = Date.now();
+  if (!d || !str_(d.id) || !str_(d.n)) throw new Error(bad);
+  if (!(d.exp > now) || d.exp > now + 2 * PASS_MAX_MS) throw new Error('That website sign-in expired. Try again.');
+  var cache = CacheService.getScriptCache(), once = 'pass:' + sha256Hex_(String(d.n)).slice(0, 40);
+  if (cache.get(once)) throw new Error(bad);
+  cache.put(once, '1', 21600);
+  return {
+    id: str_(d.id).slice(0, 80),
+    name: str_(d.name).replace(/[,\s]+/g, ' ').trim().slice(0, 60),
+    email: str_(d.email).slice(0, 120),
+    via: d.via === 'phone' ? 'phone' : 'wix'
+  };
+}
+
+/** A name for a new website account that can't match a member by accident (seeing a student's
+ *  kata always needs an admin-approved link). */
+function websiteName_(ss, rows, w) {
+  var base = w.name || (w.email ? w.email.split('@')[0] : '') || 'Website member';
+  var taken = {};
+  rows.forEach(function (a) { taken[a.name.toLowerCase()] = true; });
+  readMembers_(ss).forEach(function (m) { taken[m.name.toLowerCase()] = true; });
+  var name = taken[base.toLowerCase()] ? base + ' (website)' : base, i = 2;
+  while (taken[name.toLowerCase()]) name = base + ' (website ' + (i++) + ')';
+  return name;
+}
+function accessRow_(o) { return ACCESS_HEAD.map(function (h) { return o[h] === undefined ? '' : o[h]; }); }
+
+/** Signs in with a website pass. A first visit makes a Member row with no links yet. */
+function wixSignIn_(pass) {
+  var w = readPass_(pass);
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  ensureTabs_(ss);
+  return withLock_(function () {
+    var rows = readAccess_(ss), sh = ss.getSheetByName(TAB.ACCESS);
+    var a = rows.filter(function (x) { return x.wixId === w.id; })[0], isNew = false;
+    if (w.via === 'phone' && !(a && a.phone)) throw new Error('The phone app isn’t open to everyone yet. Use the Kata Tracker on the dojo website.');
+    if (!a) {
+      var name = websiteName_(ss, rows, w);
+      sh.appendRow(accessRow_({ Name: name, Level: 'Member', Notes: FROM_WEB, 'Wix ID': w.id, Email: w.email }));
+      a = { row: sh.getLastRow(), name: name, level: 'Member' };
+      isNew = true;
+    }
+    sh.getRange(a.row, ACCESS_HEAD.indexOf('Last signed in') + 1).setValue(new Date());
+    if (w.email) sh.getRange(a.row, ACCESS_HEAD.indexOf('Email') + 1).setValue(w.email);
+    CacheService.getScriptCache().remove('signFails');
+    var out = newSession_(a.name, wixCheck_(w.id, w.via));
+    out.name = a.name; out.level = a.level; out.via = w.via; out.isNew = isNew;
+    return out;
+  });
+}
+
+/** Someone signed in with their access code connects their website account to the same row,
+ *  keeping their level and family links. A Member row their first website visit made is folded in. */
+function connectWix_(ss, s, pass) {
+  if (s.via !== 'code') throw new Error('You’re already signed in with your website account.');
+  var w = readPass_(pass);
+  return withLock_(function () {
+    var sh = ss.getSheetByName(TAB.ACCESS), rows = readAccess_(ss);
+    var mine = rows.filter(function (x) { return x.name === s.name; })[0];
+    if (!mine) throw new Error('You aren’t on the Access tab. Ask an admin.');
+    if (mine.wixId && mine.wixId !== w.id) throw new Error('Your access is already connected to a different website account. Ask an admin.');
+    var other = rows.filter(function (x) { return x.wixId === w.id && x.name !== s.name; })[0];
+    if (other) {
+      if (other.notes !== FROM_WEB || other.level !== 'Member' || other.family.length || other.hash) {
+        throw new Error('That website account is already connected to ' + other.name + '. Ask an admin.');
+      }
+      // Its waiting requests move over, then the extra row goes.
+      readRequests_(ss).forEach(function (q) {
+        if (q.sentBy === other.name && q.state === 'Waiting') ss.getSheetByName(TAB.REQUESTS).getRange(q.row, REQ_HEAD.indexOf('Sent by') + 1).setValue(s.name);
+      });
+      sh.deleteRow(other.row);
+      mine = readAccess_(ss).filter(function (x) { return x.name === s.name; })[0];
+    }
+    sh.getRange(mine.row, ACCESS_HEAD.indexOf('Wix ID') + 1, 1, 2).setValues([[w.id, w.email]]);
+    if (w.via === 'phone' && !mine.phone) throw new Error('Connected. The phone app isn’t open to everyone yet, so use the Kata Tracker on the dojo website.');
+    var out = newSession_(s.name, wixCheck_(w.id, w.via));
+    out.name = s.name; out.level = mine.level; out.via = w.via;
+    return out;
+  });
+}
+
+/** Anyone signed in can ask an admin for a higher level. */
+function askLevel_(ss, s, level, note) {
+  level = str_(level); note = str_(note).slice(0, 300);
+  if (!s.hasRow) throw new Error('Sign in with your own account to ask for access.');
+  if (rank_(level) <= rank_(s.level)) throw new Error('Pick a level above ' + s.level + '.');
+  return withLock_(function () {
+    var sh = ss.getSheetByName(TAB.REQUESTS);
+    var open = readRequests_(ss).filter(function (q) { return q.type === 'Level' && q.state === 'Waiting' && q.sentBy === s.name; })[0];
+    if (open) {
+      sh.getRange(open.row, REQ_HEAD.indexOf('From') + 1, 1, 3).setValues([[s.level, level, note]]);
+      sh.getRange(open.row, REQ_HEAD.indexOf('Time') + 1).setValue(new Date());
+      return { id: open.id, to: level, state: 'Waiting' };
+    }
+    var id = newId_();
+    sh.appendRow([id, new Date(), 'Level', s.name, '', s.level, level, note, s.name, 'Waiting', '', '', '']);
+    return { id: id, to: level, state: 'Waiting' };
+  });
+}
+
+function setPhoneApp_(ss, s, name, on) {
+  name = str_(name);
+  return withLock_(function () {
+    var a = readAccess_(ss).filter(function (x) { return x.name === name; })[0];
+    var row = a ? a.row : addAccessRow_(ss, name, readMembers_(ss));
+    ss.getSheetByName(TAB.ACCESS).getRange(row, ACCESS_HEAD.indexOf('Phone app') + 1).setValue(on ? 'Yes' : '');
+    return { name: name, phoneApp: !!on };
+  });
 }
 
 function rank_(level) { return LEVELS.indexOf(level); }
@@ -295,6 +439,8 @@ function getData_(ss, s) {
     progress: {},
     me: null,
     passwordOn: passwordOn_(),
+    wixOn: !!wixKey_(),
+    wixSignInUrl: PropertiesService.getScriptProperties().getProperty('WIX_SIGNIN_URL') || '',
     loadedAt: new Date().toISOString()
   };
   if (!s) return out;
@@ -304,7 +450,8 @@ function getData_(ss, s) {
   var progress = readProgress_(ss);
   out.members = members.filter(function (m) { return names.indexOf(m.name) !== -1; });
   names.forEach(function (n) { if (progress[n]) out.progress[n] = progress[n]; });
-  out.me = { name: s.name, level: s.level, password: s.password, family: s.family, canLink: s.hasRow };
+  out.me = { name: s.name, level: s.level, password: s.password, family: s.family, canLink: s.hasRow,
+    via: s.via || '', website: !!s.wixId, phoneApp: !!s.phone };
 
   var reqs = readRequests_(ss);
   var cutoff = Date.now() - 14 * 864e5;
@@ -321,8 +468,11 @@ function getData_(ss, s) {
   }
   out.myLinks = reqs.filter(function (q) { return q.type === 'Family' && q.sentBy === s.name && q.state === 'Waiting'; })
     .map(function (q) { return q.member; });
+  out.myLevelAsk = reqs.filter(function (q) { return q.type === 'Level' && q.sentBy === s.name && q.state === 'Waiting'; })
+    .map(function (q) { return { id: q.id, to: q.to, note: q.note }; })[0] || null;
   if (isAdmin_(s)) {
     out.linkRequests = reqs.filter(function (q) { return q.type === 'Family' && q.state === 'Waiting'; });
+    out.levelRequests = reqs.filter(function (q) { return q.type === 'Level' && q.state === 'Waiting'; });
     out.access = accessList_(ss, members);
     out.sheetUrl = ss.getUrl();
   }
@@ -354,6 +504,10 @@ function person_(name, belt, onList, a) {
     made: a && a.hash ? fmtDate_(a.made) : '',
     lastSeen: a ? fmtDate_(a.last) : '',
     family: a ? a.family : [],
+    website: !!(a && a.wixId),
+    email: a ? a.email : '',
+    phoneApp: !!(a && a.phone),
+    fromWeb: !!(a && a.notes === FROM_WEB),
     seenBy: []
   };
 }
@@ -398,7 +552,7 @@ function withdrawRequest_(ss, s, id) {
 
 function requestLink_(ss, s, member) {
   member = str_(member);
-  if (!s.hasRow) throw new Error('Sign in with your own access code to link family members.');
+  if (!s.hasRow) throw new Error('Sign in with your own account to link family members.');
   var hit = readMembers_(ss).filter(function (m) { return m.name.toLowerCase() === member.toLowerCase(); })[0];
   if (!hit) throw new Error('No member is called “' + member + '”. Use their name exactly as the dojo has it.');
   if (hit.name === s.name || s.family.indexOf(hit.name) !== -1) throw new Error('You can already see ' + hit.name + '.');
@@ -458,7 +612,7 @@ function decide_(ss, s, id, verdict) {
   if (verdict !== 'Approved' && verdict !== 'Declined') throw new Error('Bad request.');
   return withLock_(function () {
   var q = findRequest_(ss, id);
-  if (q.type === 'Family') need_(s, 'Admin');
+  if (q.type === 'Family' || q.type === 'Level') need_(s, 'Admin');
   if (q.state !== 'Waiting') throw new Error('Someone has already ' + q.state.toLowerCase() + ' this.');
   var was = '';
   if (q.type === 'Kata' && verdict === 'Approved') {
@@ -466,6 +620,10 @@ function decide_(ss, s, id, verdict) {
     saveStatusChecked_(q.member, q.kata, q.to, s.name + ' (request)');
   }
   if (q.type === 'Family' && verdict === 'Approved') setFamily_(ss, q.sentBy, q.member, true);
+  if (q.type === 'Level' && verdict === 'Approved') {
+    was = (readAccess_(ss).filter(function (x) { return x.name === q.sentBy; })[0] || {}).level || 'Member';
+    setLevel_(ss, s, q.sentBy, q.to);
+  }
   setReqState_(ss, q.row, verdict, s.name, was);
   return { id: q.id, state: verdict, member: q.member, kata: q.kata, status: verdict === 'Approved' ? q.to : was };
   });
@@ -474,8 +632,9 @@ function decide_(ss, s, id, verdict) {
 function undoDecision_(ss, s, id) {
   return withLock_(function () {
   var q = findRequest_(ss, id);
-  if (q.type === 'Family') need_(s, 'Admin');
+  if (q.type === 'Family' || q.type === 'Level') need_(s, 'Admin');
   if (q.state !== 'Approved' && q.state !== 'Declined') throw new Error('Nothing to undo.');
+  if (q.type === 'Level' && q.state === 'Approved') setLevel_(ss, s, q.sentBy, q.was || 'Member');
   if (q.type === 'Kata' && q.state === 'Approved') saveStatusChecked_(q.member, q.kata, q.was, s.name + ' (undo)');
   if (q.type === 'Family' && q.state === 'Approved') setFamily_(ss, q.sentBy, q.member, false);
   var sh = ss.getSheetByName(TAB.REQUESTS);
@@ -493,8 +652,8 @@ function setLevel_(ss, s, name, level) {
     var rows = readAccess_(ss);
     var a = rows.filter(function (x) { return x.name === name; })[0];
     if (a && a.level === 'Admin' && level !== 'Admin' &&
-        rows.filter(function (x) { return x.level === 'Admin' && x.hash; }).length <= 1) {
-      throw new Error('Keep at least one admin with a code. Make someone else an admin first.');
+        rows.filter(function (x) { return x.level === 'Admin' && (x.hash || x.wixId); }).length <= 1) {
+      throw new Error('Keep at least one admin who can sign in. Make someone else an admin first.');
     }
     var row = a ? a.row : addAccessRow_(ss, name, readMembers_(ss));
     ss.getSheetByName(TAB.ACCESS).getRange(row, ACCESS_HEAD.indexOf('Level') + 1).setValue(level);
@@ -527,7 +686,7 @@ function removeCode_(ss, s, name) {
     var rows = readAccess_(ss);
     var a = rows.filter(function (x) { return x.name === name; })[0];
     if (!a || !a.hash) return { name: name };
-    if (a.level === 'Admin' && rows.filter(function (x) { return x.level === 'Admin' && x.hash; }).length <= 1) {
+    if (a.level === 'Admin' && !a.wixId && rows.filter(function (x) { return x.level === 'Admin' && (x.hash || x.wixId); }).length <= 1) {
       throw new Error('This is the only admin code. Make someone else an admin first.');
     }
     var sh = ss.getSheetByName(TAB.ACCESS);
@@ -548,7 +707,7 @@ function addPerson_(ss, s, name, level) {
       throw new Error(name + ' is already on the list.');
     }
     var sh = ss.getSheetByName(TAB.ACCESS);
-    sh.appendRow([name, level, '', '', '', '', 'Not on the member list']);
+    sh.appendRow(accessRow_({ Name: name, Level: level, Notes: 'Not on the member list' }));
     return { name: name, level: level };
   });
 }
@@ -593,7 +752,7 @@ function addAccessRow_(ss, name, members) {
   var m = members.filter(function (x) { return x.name === name; })[0];
   if (!m) throw new Error('No one called ' + name + ' on the member list.');
   var sh = ss.getSheetByName(TAB.ACCESS);
-  sh.appendRow([name, 'Member', '', '', '', '', '']);
+  sh.appendRow(accessRow_({ Name: name, Level: 'Member' }));
   return sh.getLastRow();
 }
 
@@ -638,7 +797,23 @@ function onOpen() {
     .addItem('Sign everyone out', 'menuSignOutAll_')
     .addSeparator()
     .addItem('Show the Lesson Planner key', 'menuPlannerKey_')
+    .addItem('Set up website sign-in…', 'menuWebsite_')
     .addToUi();
+}
+
+/** Makes (once) the key the dojo's Wix site signs passes with, and saves the phone sign-in page address. */
+function menuWebsite_() {
+  var ui = SpreadsheetApp.getUi(), props = PropertiesService.getScriptProperties();
+  var key = props.getProperty('WIX_KEY');
+  if (!key) { key = (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, ''); props.setProperty('WIX_KEY', key); }
+  ui.alert('Website sign-in key',
+    'In the Wix site\'s dashboard, open Developer Tools → Secrets Manager and add a secret named KATA_TRACKER_KEY with this value:\n\n' + key +
+    '\n\nAnyone with this key could sign in as anyone, so keep it only in Wix. To replace it, delete the WIX_KEY script property and run this again.',
+    ui.ButtonSet.OK);
+  var cur = props.getProperty('WIX_SIGNIN_URL') || '';
+  var r = ui.prompt('Phone app sign-in page',
+    'Address of the Wix page "kata-sign-in" (for the phone app). Leave blank to keep ' + (cur || 'it unset') + '.', ui.ButtonSet.OK_CANCEL);
+  if (r.getSelectedButton() === ui.Button.OK && str_(r.getResponseText())) props.setProperty('WIX_SIGNIN_URL', str_(r.getResponseText()));
 }
 
 function menuSync_() {
@@ -719,9 +894,11 @@ function ensureTabs_(ss) {
       sh.setFrozenRows(1);
       return;
     }
-    // A tab made before a column was added gets the missing header (e.g. Access → Code).
-    var last = t[1].length, head = sh.getRange(1, last);
-    if (!str_(head.getValue())) head.setValue(t[1][last - 1]).setFontWeight('bold');
+    // A tab made before a column was added gets the missing headers (e.g. Access → Code, Wix ID…).
+    var head = sh.getRange(1, 1, 1, t[1].length), have = head.getValues()[0];
+    if (have.some(function (v, i) { return !str_(v); })) {
+      head.setValues([t[1].map(function (h, i) { return str_(have[i]) || h; })]).setFontWeight('bold');
+    }
   });
 }
 
@@ -743,7 +920,11 @@ function readAccess_(ss) {
       made: v[r][col('Code made')],
       family: str_(v[r][col('Family')]).split(',').map(str_).filter(String),
       last: v[r][col('Last signed in')],
-      code: col('Code') >= 0 ? str_(v[r][col('Code')]) : ''
+      code: col('Code') >= 0 ? str_(v[r][col('Code')]) : '',
+      notes: str_(v[r][col('Notes')]),
+      wixId: col('Wix ID') >= 0 ? str_(v[r][col('Wix ID')]) : '',
+      email: col('Email') >= 0 ? str_(v[r][col('Email')]) : '',
+      phone: col('Phone app') >= 0 ? /^(yes|y|true|1)$/i.test(str_(v[r][col('Phone app')])) : false
     });
   }
   return out;

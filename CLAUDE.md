@@ -28,6 +28,8 @@ The page is on GitHub Pages (not served by Apps Script) because multi-account ph
 
 - Sign-in: personal **access code** (6 chars like `K7P-4QX`, no 0/O/1/I/L). Sign-in checks `SHA-256("ska-kata:" + CODE)` (Code hash). Since Oct 22 the code itself is also saved in the Access tab's **Code** column (Gary's choice, so a lost code can be given out again); admins see it in Access (person panel, Copy). Codes made before then show "can't be shown" until a new one is made. Only admins get `access` or `sheetUrl` (the "Open the sheet" link). New/removed code signs that person out. Sheet menu **Kata Tracker → Make an access code…** also makes one. **Sign everyone out** rotates `TOKEN_SECRET`. Gary later wants the dojo website's sign-in instead.
 - Can't remove or demote the last admin who has a code.
+- **Dojo website sign-in (Wix, Nov 2026, replacing access codes).** The Wix site's backend (`wix/backend/kataTracker.web.js`) signs a 5-minute, single-use pass for the logged-in Wix member with secret `KATA_TRACKER_KEY` = Script property `WIX_KEY` (sheet menu **Set up website sign-in…**). Pass = base64url(JSON `{id,name,email,via,exp,n}`) + `.` + hex HMAC-SHA256. Inside the Wix page the tracker posts `{kt:'hello'}` to the parent and gets `{kt:'pass'}` back (`wix/tracker-page.js`, embed ID `#kataTracker`); the phone app goes to the hidden Wix page `kata-sign-in` (`WIX_SIGNIN_URL`), which returns to `#wixpass=…`. `wixSignIn` finds the Access row by **Wix ID**; a first visit makes a Member row named so it can't match a student (e.g. "Maya Chen (website)", Notes "From the website"): seeing any kata needs an admin-approved "Connect to a member" (Family) request. Someone still on an access code inside the Wix page is offered **Connect** (`connectWix`), which keeps their level and folds in a stray website row. Sessions: `c` = `wx:`/`wp:` + hash of the Wix ID. **Phone app** (outside the website) only for rows with Phone app = Yes (Gary's choice: hidden from most people because of the dojo's phone policy); turning it off signs that phone out. "Open in its own tab" only shows for them. Setup steps for Gary/the site owner: `wix/SETUP.md` (needs a Wix role with Edit Site; Gary isn't the owner).
+- **Ask for more access:** anyone signed in can ask for a higher level (Request type **Level**); admins approve in Access (Undo restores the old level).
 - **TEMPORARY PASSWORD**: Settings B3 still signs in as Moderator until an admin taps **Turn it off** (Script Property `PASSWORD_OFF` = 1). To be removed later: search both files for `TEMPORARY PASSWORD`.
 
 ## API (`Code.gs`)
@@ -35,7 +37,7 @@ The page is on GitHub Pages (not served by Apps Script) because multi-account ph
 - Every call is `{action, a, t, p, h}` → `{ok, result}` / `{ok:false, error}`, as a `text/plain` POST, or fallback `GET ?api=rpc&callback=fn&…` (JSONP-style, `<script crossOrigin='anonymous'>`; Gary's Android Chrome never gets fetch replies, so the page switches after one failure and returns to fetch when it works). `a` = JSON args, `t` = phone clock (ms, within 15 min).
 - `signIn`: `h` = SHA-256(`t:` + SHA-256(`ska-kata:` + CODE)) → `{p, k, name, level}`; `p` = session (400 days), `k` = HMAC of `p` with `TOKEN_SECRET`, stored as `kt.session` (sessionStorage if "Keep me signed in" is off). Signed calls send `p` and `h` = SHA-256(`t:k:action:a`); no secret is ever in a URL. Level is re-read from Access every call. `SIGNED_OUT:` errors sign the page out.
 - `getData`: only what the level may see. Members: `members`/`progress` (self + family), `myRequests`, `myLinks`; moderators add `requests`, `recent`, `log` (newest 600); admins add `linkRequests`, `access`, `sheetUrl`.
-- Member: `requestChange`, `withdrawRequest`, `requestLink`. Moderator: `saveStatus`, `saveMany` (≤40; page sends 15, falls back to `saveStatus`), `decide`, `undoDecision`. Instructor: `addMember(name, belt)` (appends to Members with Active = Yes and a note, adds the Progress row; refuses duplicates and says when one is set to Active = No). Admin: `setLevel`, `makeCode`, `removeCode`, `addPerson`, `removeFamily`, `setPassword(false)`.
+- Unsigned: `wixSignIn(pass)`. Member: `requestChange`, `withdrawRequest`, `requestLink`, `askLevel(level, note)`, `connectWix(pass)` (code sessions only). Moderator: `saveStatus`, `saveMany` (≤40; page sends 15, falls back to `saveStatus`), `decide`, `undoDecision`. Instructor: `addMember(name, belt)` (appends to Members with Active = Yes and a note, adds the Progress row; refuses duplicates and says when one is set to Active = No). Admin: `setLevel`, `setPhoneApp(name, on)`, `makeCode`, `removeCode`, `addPerson`, `removeFamily`, `setPassword(false)`.
 - 10 wrong codes pause sign-in 15 min. `clientLog` (via `sendBeacon`) logs "Kata Tracker page problem" to Executions.
 - `GET ?api=summary`: kata with rank, Learned at and count still needing it (counts only), for the SKA Lesson Planner.
 - `POST {action:'plannerMembers', key}`: active members' names and belts for the planner; only if `key` = Script Property `PLANNER_KEY` (menu **Show the Lesson Planner key**). Nothing else is shared.
@@ -46,8 +48,8 @@ The page is on GitHub Pages (not served by Apps Script) because multi-account ph
 - **Members**: Name, Belt, Active (No hides, keeps history), Notes. Juniors are initial + surname on purpose.
 - **Progress**: row per member, column per kata (A Member, B Belt via ARRAYFORMULA). Menu **Sync progress** adds missing rows/columns.
 - **Log**: every app change (time, member, kata, status, who; approvals end "(request)").
-- **Access** (auto): Name, Level, Code hash, Code made, Family, Last signed in, Notes, Code (added to an existing tab's header automatically). No row = Member without a code. Deleting a row signs them out.
-- **Requests** (auto): ID, Time, Type (Kata / Family), Member, Kata, From, To, Note, Sent by, State, Decided by, Decided at, Was (for Undo).
+- **Access** (auto): Name, Level, Code hash, Code made, Family, Last signed in, Notes, Code, Wix ID, Email, Phone app (missing headers are added automatically). No row = Member without a code. Deleting a row signs them out.
+- **Requests** (auto): ID, Time, Type (Kata / Family / Level), Member, Kata, From, To, Note, Sent by, State, Decided by, Decided at, Was (for Undo).
 - **Settings**: Dojo name B2, password B3, statuses D2:D10 (anything after the first counts as knowing), belts with colours from row 7.
 
 ## App design rules (`index.html`, one file)
@@ -85,8 +87,8 @@ The page is on GitHub Pages (not served by Apps Script) because multi-account ph
 ## Code map
 | File | Lines | What's in it |
 |---|---|---|
-| `Code.gs` | 962 | entry (`doGet`, `doPost`, `run_`, `dispatch_`); security (`sha256Hex_`, `hmacHex_`, `codeHash_`, `checkClock_`, `failGate_`, `newSession_`, `signIn_`, `session_`); temp password (`passwordOn_`, `signInPassword_`, `setPassword_`); levels (`rank_`, `need_`, `isMod_`, `isAdmin_`, `visibleNames_`); actions (`getData_`, `requestChange_`, `withdrawRequest_`, `requestLink_`, `saveStatus_`, `saveMany_`, `decide_`, `undoDecision_`, `setLevel_`, `makeCode_`, `removeCode_`, `addPerson_`, `removeFamily_`); reads (`readLog_`, `readKata_`, `readMembers_`, `readProgress_`, `readAccess_`, `readRequests_`, `getSettings_`); `kataSummary_`; `syncProgress_`; menu (`onOpen`, `menuMakeCode_`, `menuSignOutAll_`, `menuPlannerKey_`); `plannerMembers_`, `plannerKey_`; `clientLog_` |
-| `web/index.html` | 2387 | CSS (~14–400), markup (~402–421), one `<script>` (~422–2169) |
+| `Code.gs` | 1184 | entry (`doGet`, `doPost`, `run_`, `dispatch_`); security (`sha256Hex_`, `hmacHex_`, `codeHash_`, `checkClock_`, `failGate_`, `newSession_`, `signIn_`, `session_`); temp password (`passwordOn_`, `signInPassword_`, `setPassword_`); levels (`rank_`, `need_`, `isMod_`, `isAdmin_`, `visibleNames_`); actions (`getData_`, `requestChange_`, `withdrawRequest_`, `requestLink_`, `saveStatus_`, `saveMany_`, `decide_`, `undoDecision_`, `setLevel_`, `makeCode_`, `removeCode_`, `addPerson_`, `removeFamily_`); reads (`readLog_`, `readKata_`, `readMembers_`, `readProgress_`, `readAccess_`, `readRequests_`, `getSettings_`); `kataSummary_`; `syncProgress_`; menu (`onOpen`, `menuMakeCode_`, `menuSignOutAll_`, `menuPlannerKey_`); `plannerMembers_`, `plannerKey_`; `clientLog_` |
+| `web/index.html` | 2527 | CSS (~14–400), markup (~402–421), one `<script>` (~422–2169) |
 
 Inside the `index.html` script, search for:
 - Transport: `request`, `call`, `viaFetch`, `viaScript`, `scriptGet`, `report`
@@ -99,24 +101,26 @@ Inside the `index.html` script, search for:
 - Kata: `kataList`, `kataGroups`, `kataDetail`, `catChips`
 - Requests: `openAsk`, `sendAsk`, `withdraw`, `openLink`, `requestsView`, `decideRequest`, `setProgress`
 - Readiness: `readyView`
-- Access: `accessView`, `accessRows`, `openPerson`, `setLevel`, `makeCode`, `removeCode`, `openAddPerson`, `askPasswordOff`
+- Access: `accessView`, `accessRows`, `openPerson`, `setLevel`, `makeCode`, `removeCode`, `openAddPerson`, `askPasswordOff`, `decideLevel`
+- Website sign-in: `wixHello`, `usePass`, `wixConnect`, `wixSignedIn`, `openAskLevel`, `sendAskLevel` (Code.gs: `readPass_`, `wixSignIn_`, `connectWix_`, `websiteName_`, `askLevel_`, `setPhoneApp_`, `menuWebsite_`)
 - Sign-in: `signInForm`, `submitSignIn`, `saveSession`, `signOut`, `openAccount`
 - Panels: `openSheet`, `closeSheet`, `openChooser`, `askChange`, `save`, `toast`, `backToPlanner`
 - Ticking several: `bulk`, `bulkCtx`, `cbx`, `selBar`, `bulkToggle`, `renderBulk`, `bulkAsk`, `saveChanges` (shared with `gSave`)
 
 ## Status
 - Working: all screens, per-person access codes with four levels, requests and approvals, Readiness, phone fallback route, Lesson Planner link, Add member, ticking several rows to set one status. Script version 16.
-- Open: remove the TEMPORARY PASSWORD once it's off; move to Cloudflare Pages before making it installable; later switch to the dojo website's sign-in.
+- Built, not live yet: dojo website sign-in (page pushed; dormant until Code.gs is deployed and `WIX_KEY` exists).
+- Open, in order: (1) Gary: `clasp push` + `clasp deploy -i …` (script version 17), then the Wix steps in `wix/SETUP.md` (his Wix role needs Edit Site, or the owner helps); (2) everyone with a level connects their website account; (3) point the Lesson Planner's tracker links (`KATA_SITE`) at the Wix Kata Tracker page (it passes `?kata`/`?add` through), since most people won't have the phone app; (4) **remove access codes and the TEMPORARY PASSWORD completely**: `signIn_`, `signInPassword_`, `makeCode_`, `removeCode_`, `menuMakeCode_`, code columns/UI, the code branch in `session_`, `connectWix_` and the page's code form; (5) move to Cloudflare Pages before the phone app is shared (update `TRACKER` in the two Wix page files too).
 
 - Lesson Planner **Add a new student**: `?add=member&from=planner` opens Members and the Add a member form (asks for an instructor/admin code first if needed); after adding it offers **Add another** / **Back to the lesson plan** (Oct 30, page only).
 
 ## Changelog (latest first, keep about 5 lines)
+- 2026-11-03: Dojo website (Wix) sign-in, Phone app switch, Ask for more access; Wix code in `wix/` (needs Code.gs deploy, script version 17)
 - 2026-11-02: Tap animation, tighter spacing everywhere, same-size tick boxes, tick several members/kata and set one status (page only)
 - 2026-10-30: `?add=member&from=planner` link for the Lesson Planner's Add a new student
 - 2026-10-23: Add member (instructors and admins) on the Members screen (script version 16)
 - 2026-10-22: Access codes saved on the Access tab (Code column) and shown to admins in Access (script version 15)
 - 2026-10-21: Moved the site files into `web/`; only that folder is published
-- 2026-10-22: Trimmed this brief
 
 ## Working efficiently
 - Find code with search first, then read only the relevant lines. Don't read index.html top to bottom.

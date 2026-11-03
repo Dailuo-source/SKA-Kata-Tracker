@@ -865,7 +865,7 @@ function render() {
 }
 
 function waitingCount() { return state.data && state.data.requests ? state.data.requests.length : 0; }
-function linkCount() { return state.data && state.data.linkRequests ? state.data.linkRequests.length : 0; }
+function linkCount() { var d = state.data; return d ? (d.linkRequests || []).length + (d.levelRequests || []).length : 0; }
 
 function renderHeader() {
   var b = $('acctBtn'), r = $('reqBtn');
@@ -896,7 +896,7 @@ function renderNav() {
     return '<button type="button" class="nl" data-tab="' + t[0] + '"' + (state.tab === t[0] ? ' aria-current="page"' : '') + '>' + esc(t[1]) +
       (n ? '<span class="nb" aria-label="' + n + ' waiting">' + n + '</span>' : '') + '</button>';
   }).join('') + '<span class="sp"></span>';
-  if (inFrame) html += '<a class="ib" href="' + esc(location.href.split('#')[0]) + '" target="_blank" rel="noopener" aria-label="Open in its own tab" title="Open in its own tab">' + ICON.ext + '</a>';
+  if (inFrame && me() && me().phoneApp) html += '<a class="ib" href="' + esc(location.href.split('#')[0]) + '" target="_blank" rel="noopener" aria-label="Open in its own tab" title="Open in its own tab">' + ICON.ext + '</a>';
   if (session) {
     var name = (me() && me().name) || session.name;
     html += '<button type="button" class="a2" data-acct><span class="ini">' + esc(initials(name)) + '</span>' + esc(level()) + '</button>';
@@ -953,7 +953,15 @@ function signInForm() {
     (pwOn ? '<button type="button" class="linkbtn" data-pwmode="1">Instructor? Use the temporary password</button>' : '') + '</form>';
 }
 function openSignIn(reason) {
-  openSheet('<div class="grab"></div><h2 id="sheetTitle">Sign in</h2><p>' + esc(reason || 'Use the access code from your instructor to see your own kata and ask for updates.') + '</p>' +
+  var d = state.data || {}, web = '';
+  if (d.wixOn && inFrame) {
+    web = '<div class="warn" style="margin-bottom:10px">On the dojo website you’re signed in with your website account automatically. If that doesn’t happen, reload the page.</div>';
+  } else if (d.wixOn && d.wixSignInUrl) {
+    web = '<a class="btn primary" style="display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none" href="' + esc(d.wixSignInUrl) + '">' +
+      ICON.ext.replace('<svg', '<svg style="width:18px;height:18px"') + 'Sign in with the SKA website</a>' +
+      '<p class="hint" style="margin:6px 0 12px">The phone app is only open to people an admin has turned it on for.</p><div class="hint" style="margin:0 0 6px">Or use an access code</div>';
+  }
+  openSheet('<div class="grab"></div><h2 id="sheetTitle">Sign in</h2><p>' + esc(reason || 'See your own kata and ask for updates.') + '</p>' + web +
     signInForm() + '<div class="btnrow" style="margin-top:8px"><button type="button" class="btn" data-close>Cancel</button></div>');
 }
 function submitSignIn(form) {
@@ -971,7 +979,7 @@ function submitSignIn(form) {
   }
   btn.disabled = true; err.textContent = '';
   p.then(function (res) {
-    saveSession({ p: res.p, k: res.k, name: res.name, level: res.level }, keep);
+    saveSession({ p: res.p, k: res.k, name: res.name, level: res.level, via: kind === 'code' ? 'code' : 'password' }, keep);
     state.pwMode = false;
     closeSheet();
     var link = state.fromPlanner && state.kata;
@@ -1002,13 +1010,91 @@ function signOut(quiet, msg) {
   if (msg) toast(msg, true); else if (!quiet) toast('Signed out');
 }
 function openAccount() {
-  var m = me(), name = (m && m.name) || session.name;
+  var m = me(), name = (m && m.name) || session.name, d = state.data || {};
   var fam = m && m.family && m.family.length ? '<div class="sec"><h3>Family members you can see</h3><div>' + esc(m.family.join(', ')) + '</div></div>' : '';
-  openSheet('<div class="grab"></div><h2 id="sheetTitle">' + esc(name) + '</h2><p>' + esc(level()) + (m && m.password ? ' · signed in with the temporary instructor password' : '') + '</p>' +
-    '<div class="hint" style="margin:0">' + esc(LEVEL_HINT[level()] || '') + '</div>' + fam +
+  var via = m && m.via ? m.via : session.via;
+  var how = via === 'wix' || via === 'phone' ? 'Signed in with your dojo website account'
+    : m && m.password ? 'Signed in with the temporary instructor password'
+    : d.wixOn ? 'Signed in with an access code. Open the Kata Tracker on the dojo website to connect your website account.' : '';
+  var ask = '';
+  if (m && m.canLink && level() !== 'Admin') {
+    ask = d.myLevelAsk
+      ? '<div class="frow"><span class="grow">Asked for ' + esc(d.myLevelAsk.to) + ' · waiting for an admin</span><button type="button" class="btn" data-withdrawlv="' + esc(d.myLevelAsk.id) + '">Withdraw</button></div>'
+      : '<button type="button" class="btn" data-asklevel>Ask for more access</button>';
+    ask = '<div class="sec"><h3>Your access</h3>' + ask + '</div>';
+  }
+  var inSite = inFrame && (via === 'wix');
+  openSheet('<div class="grab"></div><h2 id="sheetTitle">' + esc(name) + '</h2><p>' + esc(level()) + '</p>' +
+    '<div class="hint" style="margin:0">' + esc(LEVEL_HINT[level()] || '') + '</div>' + (how ? '<div class="hint" style="margin:6px 0 0">' + esc(how) + '</div>' : '') + fam + ask +
     (isAdmin() ? '<div class="sec"><button type="button" class="btn" data-goto="access" style="display:flex;align-items:center;justify-content:center;gap:8px">' +
       ICON.key.replace('<svg', '<svg style="width:18px;height:18px"') + 'Access: levels, codes and family links' + (linkCount() ? ' (' + linkCount() + ' waiting)' : '') + '</button></div>' : '') +
-    '<div class="btnrow" style="margin-top:18px"><button type="button" class="btn" data-close>Close</button><button type="button" class="btn primary" data-signout>Sign out</button></div>');
+    (inSite ? '<p class="hint" style="margin:14px 0 0">To switch accounts, log out of the dojo website.</p><div class="btnrow" style="margin-top:10px"><button type="button" class="btn primary" data-close>Close</button></div>'
+      : '<div class="btnrow" style="margin-top:18px"><button type="button" class="btn" data-close>Close</button><button type="button" class="btn primary" data-signout>Sign out</button></div>'));
+}
+/** Ask an admin for a higher level (goes to Access with family link requests). */
+function openAskLevel() {
+  var above = LEVELS.slice(LEVELS.indexOf(level()) + 1);
+  openSheet('<div class="grab"></div><h2 id="sheetTitle">Ask for more access</h2><p>An admin sees this in Access and can say yes or no.</p>' +
+    '<div class="field"><label>Level</label><div class="seg lv" id="askLv" style="grid-template-columns:repeat(' + above.length + ',minmax(0,1fr))">' + above.map(function (l, i) {
+      return '<button type="button" data-asklv="' + l + '" aria-pressed="' + (i === 0) + '">' + l + '</button>';
+    }).join('') + '</div></div>' +
+    '<div class="field"><label for="askLvNote">Why (optional)</label><textarea class="inp" id="askLvNote" rows="2" maxlength="300" placeholder="e.g. I help run the Tuesday kids class"></textarea></div>' +
+    '<div class="ferr" id="askLvErr" aria-live="polite"></div>' +
+    '<div class="btnrow"><button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn primary" data-sendlevel>Send request</button></div>');
+}
+function sendAskLevel(btn) {
+  var pick = $('askLv').querySelector('[aria-pressed=true]'), note = $('askLvNote').value.trim();
+  if (!pick) return;
+  btn.disabled = true;
+  call('askLevel', pick.dataset.asklv, note).then(function (res) {
+    state.data.myLevelAsk = { id: res.id, to: res.to, note: note }; cacheData();
+    closeSheet(); toast('Sent. An admin will look at it.');
+  }).catch(function (e) { $('askLvErr').textContent = errMsg(e); btn.disabled = false; });
+}
+
+/* ---------- Signing in with the dojo website (Wix) ----------
+   Inside the website, the Wix page answers our "hello" with a signed pass for the logged-in member.
+   The phone app goes to the Wix sign-in page instead, which comes back with #wixpass=…. */
+var wixAsked = false;
+function wixHello() {
+  if (!inFrame || wixAsked) return;
+  wixAsked = true;
+  try { window.parent.postMessage({ kt: 'hello' }, '*'); } catch (e) {}
+}
+window.addEventListener('message', function (e) {
+  var m = e.data;
+  if (!m || typeof m !== 'object' || m.kt !== 'pass' || !m.pass) return;
+  usePass(String(m.pass));
+});
+function usePass(pass) {
+  var via = session && session.via;
+  var legacy = session && via !== 'wix' && via !== 'phone' && !/ \(password\)$/.test(session.name || '');
+  if (legacy) {
+    openSheet('<div class="grab"></div><h2 id="sheetTitle">Connect your website account?</h2>' +
+      '<p>From now on you’ll sign in with your dojo website account instead of your access code. You keep your access (' + esc(level()) + ') and family links.</p>' +
+      '<div class="ferr" id="wixErr" aria-live="polite"></div>' +
+      '<div class="btnrow"><button type="button" class="btn" data-close>Not now</button><button type="button" class="btn primary" data-wixconnect>Connect</button></div>');
+    state.wixPass = pass;
+    return;
+  }
+  call('wixSignIn', pass).then(function (res) { wixSignedIn(res, false); })
+    .catch(function (e) { toast('Website sign-in: ' + errMsg(e), true); });
+}
+function wixConnect(btn) {
+  var pass = state.wixPass; state.wixPass = null;
+  if (!pass) return;
+  btn.disabled = true;
+  call('connectWix', pass).then(function (res) { closeSheet(); wixSignedIn(res, true); })
+    .catch(function (e) { var x = $('wixErr'); if (x) x.textContent = errMsg(e) + ' Reload the page to try again.'; });
+}
+function wixSignedIn(res, connected) {
+  var same = session && session.name === res.name && session.via === res.via;
+  saveSession({ p: res.p, k: res.k, name: res.name, level: res.level, via: res.via }, true);
+  if (same && !connected) return;                    // the usual visit: same person, nothing to announce
+  if (!same) { state.data = publicData(state.data); if (!state.fromPlanner) { state.tab = homeTab(); state.member = null; state.kata = null; } }
+  render();
+  toast(connected ? 'Connected. You’ll sign in with your website account from now on.' : res.isNew ? 'Welcome, ' + first(res.name) + '. Connect yourself to a member to see your kata.' : 'Signed in as ' + res.name);
+  load();
 }
 
 /* ----- Members (moderators): a simple list (a table on wide screens) and one member's kata ----- */
@@ -1237,11 +1323,11 @@ function myKata() {
     html += '<div class="chips" role="group" aria-label="Whose kata">' + people.map(function (p) {
       return '<button type="button" class="chip dark" data-whopick="' + esc(p.name) + '" aria-pressed="' + (!!m && m.name === p.name) + '">' + esc(shortName(p.name)) + '</button>';
     }).join('') + links.map(function (n) { return '<span class="chip wait">' + esc(shortName(n)) + ' · waiting</span>'; }).join('') +
-      (mi.canLink ? '<button type="button" class="chip dash" data-linkopen>' + ICON.plus + 'Family member</button>' : '') + '</div>';
+      (mi.canLink ? '<button type="button" class="chip dash" data-linkopen>' + ICON.plus + (people.length ? 'Family member' : 'Connect to a member') + '</button>' : '') + '</div>';
   }
   if (!m) {
     return html + '<div class="card pad"><div style="font-weight:800;margin-bottom:6px">No kata to show yet</div><div class="hint" style="margin:0">' +
-      (mi.canLink ? 'If you’re a parent or guardian, tap “Family member” to ask to see your child’s kata.' : 'Ask an instructor to check your name on the member list.') + '</div></div></div>';
+      (mi.canLink ? 'Tap “Connect to a member” and type your name as the dojo has it, or your child’s if you’re a parent. An admin checks it first.' : 'Ask an instructor to check your name on the member list.') + '</div></div></div>';
   }
   return html + memberDetail(m, true) + '</div>';
 }
@@ -1284,8 +1370,21 @@ function withdraw(id) {
     closeSheet(); render(); toast('Request withdrawn');
   }).catch(function (e) { toast('Not withdrawn: ' + errMsg(e), true); });
 }
+function decideLevel(q, verdict) {
+  var d = state.data, id = q.id;
+  d.levelRequests = d.levelRequests.filter(function (x) { return x.id !== id; });
+  render(); toast('Saving…');
+  call('decide', id, verdict).then(function () {
+    undoFn = function () {
+      d.levelRequests = [q].concat(d.levelRequests || []); render(); toast('Undoing…');
+      call('undoDecision', id).then(function () { toast('Undone'); load(); }).catch(function (e) { toast('Not undone: ' + errMsg(e), true); load(); });
+    };
+    toast(verdict + ': ' + q.sentBy + ' as ' + q.to, false, true);
+    load();
+  }).catch(function (e) { d.levelRequests = [q].concat(d.levelRequests || []); render(); toast('Not saved: ' + errMsg(e), true); });
+}
 function openLink() {
-  openSheet('<div class="grab"></div><h2 id="sheetTitle">Link a family member</h2><p>See and ask about a family member’s kata with your code. An admin checks the request first.</p>' +
+  openSheet('<div class="grab"></div><h2 id="sheetTitle">Connect to a member</h2><p>Yourself, or your child if you’re a parent. You’ll see and can ask about their kata once an admin checks it.</p>' +
     '<form id="linkForm" autocomplete="off"><div class="field"><label for="linkName">Their name, as the dojo has it</label><input class="inp" id="linkName" maxlength="60" placeholder="First and last name" data-focus></div>' +
     '<div class="ferr" id="linkErr" aria-live="polite"></div>' +
     '<div class="btnrow"><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary" id="linkSend">Send request</button></div></form>');
@@ -1423,8 +1522,9 @@ function requestsView() {
 
 function decideRequest(id, verdict) {
   var d = state.data;
-  var q = (d.requests || []).concat(d.linkRequests || []).filter(function (x) { return x.id === id; })[0];
+  var q = (d.requests || []).concat(d.linkRequests || [], d.levelRequests || []).filter(function (x) { return x.id === id; })[0];
   if (!q) return;
+  if (q.type === 'Level') return decideLevel(q, verdict);
   var family = q.type === 'Family';
   var was = family ? '' : statusOf(q.member, q.kata);
   var restore = function () {
@@ -1944,11 +2044,20 @@ function accessView() {
       '<div style="font-size:13.5px;font-weight:700;line-height:1.45">Still works and gives moderator access. Turn it off once your moderators and admins have codes.</div>' +
       '<button type="button" class="btn" data-pwoff>Turn it off</button></section>';
   }
+  (d.levelRequests || []).forEach(function (q) {
+    var acct = personByName(q.sentBy) || {};
+    html += '<article class="card req"><div class="row"><h2 class="h2 grow" style="font-size:16px">Access request</h2><span class="when">' + esc(ago(q.time)) + '</span></div>' +
+      '<div style="font-size:14.5px;font-weight:600;line-height:1.45"><b>' + esc(q.sentBy) + '</b> (' + esc(q.from || 'Member') + ') asks to be <b>' + esc(q.to) + '</b>.</div>' +
+      (acct.email ? '<div class="hint" style="margin:0">Website account: ' + esc(acct.email) + '</div>' : '') +
+      (q.note ? '<div class="quote">“' + esc(q.note) + '”</div>' : '') +
+      '<div class="btnrow"><button type="button" class="btn" data-decide="' + esc(q.id) + '" data-verdict="Declined">Decline</button><button type="button" class="btn primary" style="flex:1.4" data-decide="' + esc(q.id) + '" data-verdict="Approved">Approve</button></div></article>';
+  });
   (d.linkRequests || []).forEach(function (q) {
     var acct = personByName(q.sentBy);
     var already = acct && acct.family.length ? acct.family.join(', ') : '';
     html += '<article class="card req"><div class="row"><h2 class="h2 grow" style="font-size:16px">Family link request</h2><span class="when">' + esc(ago(q.time)) + '</span></div>' +
-      '<div style="font-size:14.5px;font-weight:600;line-height:1.45"><b>' + esc(q.sentBy) + '</b>’s code wants to also see and ask about <b>' + esc(q.member) + '</b>.</div>' +
+      '<div style="font-size:14.5px;font-weight:600;line-height:1.45"><b>' + esc(q.sentBy) + '</b> wants to see and ask about <b>' + esc(q.member) + '</b>.</div>' +
+      (acct && acct.website ? '<div class="hint" style="margin:0">Website account' + (acct.email ? ': ' + esc(acct.email) : '') + (acct.fromWeb && !acct.family.length ? ' · new' : '') + '</div>' : '') +
       (already ? '<div class="hint" style="margin:0">Already linked: ' + esc(already) + '</div>' : '') +
       '<div class="btnrow"><button type="button" class="btn" data-decide="' + esc(q.id) + '" data-verdict="Declined">Decline</button><button type="button" class="btn primary" style="flex:1.4" data-decide="' + esc(q.id) + '" data-verdict="Approved">Approve</button></div></article>';
   });
@@ -1969,11 +2078,15 @@ function accessRows() {
   }).sort(function (a, b) { return (LEVELS.indexOf(b.level) - LEVELS.indexOf(a.level)) || a.name.localeCompare(b.name); });
   if (!list.length) return '<div class="card empty">Nobody matches.</div>';
   return '<section class="card group">' + list.map(function (p) {
-    var sub = p.hasCode ? 'Code made ' + shortDate(p.made) + (p.lastSeen ? ' · signed in ' + shortDate(p.lastSeen) : '') : '<span class="need">No code yet</span>';
-    if (!p.onList) sub = 'Not on the member list · ' + sub;
+    var bits = [];
+    if (p.website) bits.push(p.phoneApp ? 'Website + phone app' : 'Website');
+    if (p.hasCode) bits.push((bits.length ? 'code made ' : 'Code made ') + shortDate(p.made));
+    if (p.lastSeen) bits.push('signed in ' + shortDate(p.lastSeen));
+    var sub = bits.length ? esc(bits.join(' · ')) : '<span class="need">Can’t sign in yet</span>';
+    if (!p.onList) sub = (p.fromWeb ? 'New from the website' : 'Not on the member list') + ' · ' + sub;
     var cls = p.level === 'Admin' ? 'ink' : p.level === 'Instructor' ? 'red' : p.level === 'Moderator' ? 'need' : '';
     return '<button type="button" class="krow" data-person="' + esc(p.name) + '">' + (p.belt ? dot(p.belt) : '<span class="dot" style="background:#fff"></span>') +
-      '<span class="grow"><span class="n">' + esc(p.name) + '</span><span class="s">' + (p.hasCode ? esc(sub) : sub) + '</span></span>' +
+      '<span class="grow"><span class="n">' + esc(p.name) + '</span><span class="s">' + sub + '</span></span>' +
       '<span class="tag ' + cls + '">' + esc(p.level) + '</span>' + ICON.go.replace('<svg', '<svg class="go"') + '</button>';
   }).join('') + '</section>';
 }
@@ -2008,6 +2121,9 @@ function openPerson(name) {
     '<div class="sec" style="border:0;margin:0;padding:0"><h3>Access level</h3><div class="seg lv">' + LEVELS.map(function (l) {
       return '<button type="button" data-level="' + l + '" data-pname="' + esc(name) + '" aria-pressed="' + (p.level === l) + '">' + l + '</button>';
     }).join('') + '</div><div class="hint" style="margin:0">' + esc(LEVEL_HINT[p.level]) + '</div><div class="ferr" id="personErr" aria-live="polite" style="margin:0"></div></div>' +
+    '<div class="sec"><h3>Dojo website account</h3>' + (p.website ? '<div style="font-size:14px;font-weight:700">' + esc(p.email || 'Connected') + '</div>' +
+      '<label class="check"><input type="checkbox" data-phoneapp="' + esc(name) + '"' + (p.phoneApp ? ' checked' : '') + '>Can use the phone app (outside the website)</label>'
+      : '<div class="hint" style="margin:0">Not connected yet. It connects the first time they open the Kata Tracker on the dojo website.</div>') + '</div>' +
     '<div class="sec"><h3>Access code</h3>' + code + '</div>' +
     '<div class="sec"><h3>Family links</h3>' + (fam || '<div style="font-size:14px;font-weight:700;color:var(--ink2)">None</div>') + '</div>' +
     '<div class="btnrow" style="margin-top:18px"><button type="button" class="btn primary" data-close>Done</button></div>');
@@ -2203,6 +2319,14 @@ document.addEventListener('click', function (e) {
   else if (d.addperson !== undefined) { openAddPerson(); }
   else if (d.addlv) { Array.prototype.forEach.call(t.parentNode.children, function (b) { b.setAttribute('aria-pressed', b === t ? 'true' : 'false'); }); }
   else if (d.pwoff !== undefined) { askPasswordOff(); }
+  else if (d.asklevel !== undefined) { openAskLevel(); }
+  else if (d.asklv) { Array.prototype.forEach.call(t.parentNode.children, function (b) { b.setAttribute('aria-pressed', b === t ? 'true' : 'false'); }); }
+  else if (d.sendlevel !== undefined) { sendAskLevel(t); }
+  else if (d.withdrawlv) {
+    call('withdrawRequest', d.withdrawlv).then(function () { state.data.myLevelAsk = null; cacheData(); closeSheet(); toast('Request withdrawn'); })
+      .catch(function (e) { toast('Not withdrawn: ' + errMsg(e), true); });
+  }
+  else if (d.wixconnect !== undefined) { wixConnect(t); }
   else if (d.pwoffyes !== undefined) {
     pending = null; hideFloat();
     call('setPassword', false).then(function () { state.data.passwordOn = false; cacheData(); render(); toast('The temporary password is off'); })
@@ -2271,6 +2395,16 @@ document.addEventListener('submit', function (e) {
       state.data.access = [{ name: res.name, belt: '', onList: false, level: res.level, hasCode: false, made: '', lastSeen: '', family: [], seenBy: [] }].concat(accessList());
       cacheData(); render(); state.newCode = null; state.confirm = null; openPerson(res.name);
     }).catch(function (err) { $('addErr').textContent = errMsg(err); $('addGo').disabled = false; });
+  }
+});
+
+document.addEventListener('change', function (e) {
+  var t = e.target;
+  if (t.dataset && t.dataset.phoneapp) {
+    var name = t.dataset.phoneapp, on = t.checked, p = personByName(name);
+    call('setPhoneApp', name, on).then(function () {
+      if (p) p.phoneApp = on; cacheData(); render(); toast(on ? first(name) + ' can use the phone app' : 'Phone app off for ' + first(name));
+    }).catch(function (err) { t.checked = !on; personErr(err); });
   }
 });
 
@@ -2374,12 +2508,18 @@ function applyLink() {
     state.data = cached; state.stale = true; $('dojoName').textContent = cached.dojoName || 'Dojo';
   }
   state.tab = homeTab();
+  var back = /[#&]wixpass=([^&]+)/.exec(location.hash || '');
+  if (back) {
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+    setTimeout(function () { usePass(decodeURIComponent(back[1])); }, 0);
+  }
   if (PARAMS.get('kata')) { link = { kata: PARAMS.get('kata'), from: PARAMS.get('from') || '' }; applyLink(); }
   else if (PARAMS.get('add') === 'member') { link = { add: true }; applyLink(); }
   // Tidy the address bar (the kata link has been read); back from the first screen leaves the site.
   try { history.replaceState(snapshot(), '', location.pathname); } catch (e) {}
   render();
   load();
+  wixHello();
 })();
 })();
 </script>
