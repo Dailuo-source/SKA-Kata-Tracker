@@ -1093,7 +1093,8 @@ function wixSignedIn(res, connected) {
   if (same && !connected) return;                    // the usual visit: same person, nothing to announce
   if (!same) { state.data = publicData(state.data); if (!state.fromPlanner) { state.tab = homeTab(); state.member = null; state.kata = null; } }
   render();
-  toast(connected ? 'Connected. You’ll sign in with your website account from now on.' : res.isNew ? 'Welcome, ' + first(res.name) + '. Connect yourself to a member to see your kata.' : 'Signed in as ' + res.name);
+  var shown = String(res.name).replace(/ \(website( \d+)?\)$/, '');
+  toast(connected ? 'Connected. You’ll sign in with your website account from now on.' : res.isNew ? 'Welcome, ' + first(shown) + '. Connect yourself to a member to see your kata.' : 'Signed in as ' + shown);
   load();
 }
 
@@ -2036,8 +2037,9 @@ function accessView() {
   var mods = list.filter(function (p) { return p.level === 'Moderator'; }).length;
   var insts = list.filter(function (p) { return p.level === 'Instructor'; }).length;
   var admins = list.filter(function (p) { return p.level === 'Admin'; }).length;
-  var noCode = list.filter(function (p) { return !p.hasCode; }).length;
-  var html = '<div class="stack"><div><h1>Access</h1><div class="sub">' + list.length + ' people · ' + mods + ' moderator' + (mods === 1 ? '' : 's') + ' · ' + insts + ' instructor' + (insts === 1 ? '' : 's') + ' · ' + admins + ' admin' + (admins === 1 ? '' : 's') + ' · ' + noCode + ' without a code</div></div>';
+  var noCode = list.filter(function (p) { return !p.hasCode && !p.website; }).length;
+  var web = list.filter(function (p) { return p.website; }).length;
+  var html = '<div class="stack"><div><h1>Access</h1><div class="sub">' + list.length + ' people · ' + mods + ' moderator' + (mods === 1 ? '' : 's') + ' · ' + insts + ' instructor' + (insts === 1 ? '' : 's') + ' · ' + admins + ' admin' + (admins === 1 ? '' : 's') + (web ? ' · ' + web + ' on the website' : '') + ' · ' + noCode + ' can’t sign in yet</div></div>';
   /* TEMPORARY PASSWORD: the switch for the shared instructor password. */
   if (d.passwordOn) {
     html += '<section class="warncard"><div class="row" style="gap:8px">' + ICON.lock.replace('<svg', '<svg style="width:20px;height:20px"') + '<h2 class="h2 grow">Temporary instructor password</h2></div>' +
@@ -2061,7 +2063,7 @@ function accessView() {
       (already ? '<div class="hint" style="margin:0">Already linked: ' + esc(already) + '</div>' : '') +
       '<div class="btnrow"><button type="button" class="btn" data-decide="' + esc(q.id) + '" data-verdict="Declined">Decline</button><button type="button" class="btn primary" style="flex:1.4" data-decide="' + esc(q.id) + '" data-verdict="Approved">Approve</button></div></article>';
   });
-  html += searchBox('Search people') + '<div class="chips" role="group" aria-label="Show">' + ['All', 'Staff', 'No code yet'].map(function (f) {
+  html += searchBox('Search people') + '<div class="chips" role="group" aria-label="Show">' + ['All', 'Staff', 'Can’t sign in yet'].map(function (f) {
     return '<button type="button" class="chip dark" data-afilter="' + esc(f) + '" aria-pressed="' + (state.accessFilter === f) + '">' + esc(f) + '</button>';
   }).join('') + '</div>' +
     '<div id="results">' + accessRows() + '</div>' +
@@ -2073,7 +2075,7 @@ function accessRows() {
   var list = accessList().filter(function (p) {
     if (!matches(state.query, p.name)) return false;
     if (f === 'Staff') return p.level !== 'Member';
-    if (f === 'No code yet') return !p.hasCode;
+    if (f === 'Can’t sign in yet') return !p.hasCode && !p.website;
     return true;
   }).sort(function (a, b) { return (LEVELS.indexOf(b.level) - LEVELS.indexOf(a.level)) || a.name.localeCompare(b.name); });
   if (!list.length) return '<div class="card empty">Nobody matches.</div>';
