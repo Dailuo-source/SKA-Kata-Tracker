@@ -55,7 +55,7 @@ The page is on GitHub Pages (not served by Apps Script) because multi-account ph
 ## App design rules (`index.html`, one file)
 
 - Look: like the SKA Lesson Planner (red #C8102E header with dojo logo, black secondary, M PLUS Rounded 1c + Nunito Sans) on light grey #ECECEA with white cards. No dark mode.
-- `wide()` (≥900 px, e.g. inside Wix): slim white top bar, pages up to 1,240 px, "open in its own tab" when framed. Phone: red header + bottom tabs.
+- `wide()` (≥900 px, e.g. inside Wix): slim white top bar, pages fill the full width (no max-width), no "Kata Tracker" label when framed (`body.framed`). On the dojo site it's a sub-page of **Dojo members** under the heading "S.A. Karate Kata Tracker". Phone: red header + bottom tabs.
 - Tabs: signed out = Kata only. Member = **My kata**, **Kata**. Moderator = **Members** (landing), **Kata**, **Grid**, **Overview**. Instructor/Admin add **Readiness** (higher-level screens on the right). **Requests** = speech-bubble header button with badge. Admin **Access** in the account panel (phone) / top bar (wide).
 - Readiness lives only on Readiness (not Overview or Members). Rule: every kata with Learned at ≤ member's belt must be Knows/Proficient; White and Black belts have no check; Empi Yonin Dori is ranked Purple but learned at Green.
 - Members: default sort belt highest first, then **last name** (`kt.msort`). Status changes ask "are you sure" + Undo.
@@ -115,6 +115,7 @@ Inside the `index.html` script, search for:
 - Lesson Planner **Add a new student**: `?add=member&from=planner` opens Members and the Add a member form (asks for an instructor/admin code first if needed); after adding it offers **Add another** / **Back to the lesson plan** (Oct 30, page only).
 
 ## Changelog (latest first, keep about 5 lines)
+- 2026-11-03: Desktop pages fill the full width; inside the dojo website the bar drops its "Kata Tracker" label (page lives under Dojo members)
 - 2026-11-03: Dojo website (Wix) sign-in, Phone app switch, Ask for more access; Wix code in `wix/` (needs Code.gs deploy, script version 17)
 - 2026-11-02: Tap animation, tighter spacing everywhere, same-size tick boxes, tick several members/kata and set one status (page only)
 - 2026-10-30: `?add=member&from=planner` link for the Lesson Planner's Add a new student

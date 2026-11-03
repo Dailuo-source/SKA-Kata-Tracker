@@ -274,7 +274,10 @@ body.wide .dnav{display:flex;position:sticky;top:0;z-index:20;background:#fff;bo
 .dnav .a2 .ini{width:30px;height:30px;border-radius:15px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px}
 .dnav .a2.out{padding:0 14px;background:var(--red);border-color:var(--red);color:#fff}
 body.wide main{padding:14px 20px calc(32px + var(--bulkh,0px))}
-body.wide main.full{max-width:1240px}
+/* Desktop pages fill the whole width (Gary's rule for all his apps). Inside the dojo's website the page
+   already has its own big heading, so the bar drops the "Kata Tracker" label. */
+body.wide main,body.wide main.full{max-width:none}
+body.wide.framed .dnav .b2{display:none}
 body.wide .float{bottom:calc(16px + var(--bulkh,0px))}
 body.wide .chips.scroll{flex-wrap:wrap;overflow:visible;margin:0;padding:0}
 
@@ -831,6 +834,7 @@ function render() {
   if (!session) state.tab = 'kata';
   else if (tabs.indexOf(state.tab) === -1) { state.tab = homeTab(); state.member = null; }
   document.body.classList.toggle('wide', wide());
+  document.body.classList.toggle('framed', inFrame);
   app.className = wide() && FULL_TABS.indexOf(state.tab) !== -1 ? 'full' : '';
   renderHeader();
   renderTabs();
