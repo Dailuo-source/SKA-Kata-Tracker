@@ -115,6 +115,7 @@ Inside the `index.html` script, search for:
 - Lesson Planner **Add a new student**: `?add=member&from=planner` opens Members and the Add a member form (asks for an instructor/admin code first if needed); after adding it offers **Add another** / **Back to the lesson plan** (Oct 30, page only).
 
 ## Changelog (latest first, keep about 5 lines)
+- 2026-11-03: Desktop: Decline/Approve small and on the kata/name line (Requests, Access)
 - 2026-11-03: Desktop pages fill the full width; inside the dojo website the bar drops its "Kata Tracker" label (page lives under Dojo members)
 - 2026-11-03: Dojo website (Wix) sign-in, Phone app switch, Ask for more access; Wix code in `wix/` (needs Code.gs deploy, script version 17)
 - 2026-11-02: Tap animation, tighter spacing everywhere, same-size tick boxes, tick several members/kata and set one status (page only)

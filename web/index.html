@@ -315,6 +315,12 @@ body.wide .tilesx{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .logrow .grow .n{font-weight:800;display:block}.logrow .grow .s{display:block;font-size:12px;font-weight:700;color:var(--muted)}
 .rq{border-radius:14px;padding:10px 12px;background:var(--red-tint);display:flex;flex-direction:column;gap:6px}
 .rq .btnrow .btn{min-height:40px;font-size:14px}
+/* Desktop: Decline / Approve sit small on the line with the kata (Requests) or the name (Access). */
+body.wide .req.rqx{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 16px;align-items:center}
+body.wide .req.rqx>*{grid-column:1}
+body.wide .req.rqx>:first-child{grid-column:1/-1}
+body.wide .req.rqx>.rqb{grid-column:2;grid-row:2}
+body.wide .rqb .btn{flex:none!important;min-height:34px;padding:0 16px;font-size:13.5px;border-radius:17px}
 .bigbtn{min-height:42px;padding:0 18px;border-radius:24px;border:0;background:var(--red);color:#fff;font-size:15px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:8px}
 .bigbtn svg{width:18px;height:18px}
 .tbl{width:100%;border-collapse:collapse;font-size:14px}
@@ -1508,12 +1514,12 @@ function requestsView() {
   if (!list.length) html += '<div class="card empty">All caught up. No requests waiting.</div>';
   list.forEach(function (q) {
     var m = memberByName(q.member) || { belt: '' };
-    html += '<article class="card req"><div class="row" style="gap:8px">' + dot(m.belt) + '<span class="grow who">' + esc(q.member) + (m.belt ? ' · ' + esc(m.belt) : '') + '</span><span class="when">' + esc(ago(q.time)) + '</span></div>' +
+    html += '<article class="card req rqx"><div class="row" style="gap:8px">' + dot(m.belt) + '<span class="grow who">' + esc(q.member) + (m.belt ? ' · ' + esc(m.belt) : '') + '</span><span class="when">' + esc(ago(q.time)) + '</span></div>' +
       '<h2 class="h2">' + esc(q.kata) + '</h2>' +
       '<div class="row" style="gap:8px">' + stPill(statusOf(q.member, q.kata)) + ICON.arrow.replace('<svg', '<svg role="img" aria-label="changes to" style="width:20px;height:20px"').replace(' aria-hidden="true"', '') + stPill(q.to) + '</div>' +
       (q.note ? '<div class="quote">“' + esc(q.note) + '”</div>' : '') +
       (q.sentBy && q.sentBy !== q.member ? '<div class="hint" style="margin:0">Sent by ' + esc(q.sentBy) + '</div>' : '') +
-      '<div class="btnrow"><button type="button" class="btn" data-decide="' + esc(q.id) + '" data-verdict="Declined">Decline</button><button type="button" class="btn primary" style="flex:1.4" data-decide="' + esc(q.id) + '" data-verdict="Approved">Approve</button></div></article>';
+      '<div class="btnrow rqb"><button type="button" class="btn" data-decide="' + esc(q.id) + '" data-verdict="Declined">Decline</button><button type="button" class="btn primary" style="flex:1.4" data-decide="' + esc(q.id) + '" data-verdict="Approved">Approve</button></div></article>';
   });
   if (recent.length) {
     html += '<h2 class="h2" style="font-size:16px;margin:10px 4px 0">Recently decided</h2><section class="card group">' + recent.map(function (q) {
@@ -2052,20 +2058,20 @@ function accessView() {
   }
   (d.levelRequests || []).forEach(function (q) {
     var acct = personByName(q.sentBy) || {};
-    html += '<article class="card req"><div class="row"><h2 class="h2 grow" style="font-size:16px">Access request</h2><span class="when">' + esc(ago(q.time)) + '</span></div>' +
+    html += '<article class="card req rqx"><div class="row"><h2 class="h2 grow" style="font-size:16px">Access request</h2><span class="when">' + esc(ago(q.time)) + '</span></div>' +
       '<div style="font-size:14.5px;font-weight:600;line-height:1.45"><b>' + esc(q.sentBy) + '</b> (' + esc(q.from || 'Member') + ') asks to be <b>' + esc(q.to) + '</b>.</div>' +
       (acct.email ? '<div class="hint" style="margin:0">Website account: ' + esc(acct.email) + '</div>' : '') +
       (q.note ? '<div class="quote">“' + esc(q.note) + '”</div>' : '') +
-      '<div class="btnrow"><button type="button" class="btn" data-decide="' + esc(q.id) + '" data-verdict="Declined">Decline</button><button type="button" class="btn primary" style="flex:1.4" data-decide="' + esc(q.id) + '" data-verdict="Approved">Approve</button></div></article>';
+      '<div class="btnrow rqb"><button type="button" class="btn" data-decide="' + esc(q.id) + '" data-verdict="Declined">Decline</button><button type="button" class="btn primary" style="flex:1.4" data-decide="' + esc(q.id) + '" data-verdict="Approved">Approve</button></div></article>';
   });
   (d.linkRequests || []).forEach(function (q) {
     var acct = personByName(q.sentBy);
     var already = acct && acct.family.length ? acct.family.join(', ') : '';
-    html += '<article class="card req"><div class="row"><h2 class="h2 grow" style="font-size:16px">Family link request</h2><span class="when">' + esc(ago(q.time)) + '</span></div>' +
+    html += '<article class="card req rqx"><div class="row"><h2 class="h2 grow" style="font-size:16px">Family link request</h2><span class="when">' + esc(ago(q.time)) + '</span></div>' +
       '<div style="font-size:14.5px;font-weight:600;line-height:1.45"><b>' + esc(q.sentBy) + '</b> wants to see and ask about <b>' + esc(q.member) + '</b>.</div>' +
       (acct && acct.website ? '<div class="hint" style="margin:0">Website account' + (acct.email ? ': ' + esc(acct.email) : '') + (acct.fromWeb && !acct.family.length ? ' · new' : '') + '</div>' : '') +
       (already ? '<div class="hint" style="margin:0">Already linked: ' + esc(already) + '</div>' : '') +
-      '<div class="btnrow"><button type="button" class="btn" data-decide="' + esc(q.id) + '" data-verdict="Declined">Decline</button><button type="button" class="btn primary" style="flex:1.4" data-decide="' + esc(q.id) + '" data-verdict="Approved">Approve</button></div></article>';
+      '<div class="btnrow rqb"><button type="button" class="btn" data-decide="' + esc(q.id) + '" data-verdict="Declined">Decline</button><button type="button" class="btn primary" style="flex:1.4" data-decide="' + esc(q.id) + '" data-verdict="Approved">Approve</button></div></article>';
   });
   html += searchBox('Search people') + '<div class="chips" role="group" aria-label="Show">' + ['All', 'Staff', 'Can’t sign in yet'].map(function (f) {
     return '<button type="button" class="chip dark" data-afilter="' + esc(f) + '" aria-pressed="' + (state.accessFilter === f) + '">' + esc(f) + '</button>';
