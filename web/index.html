@@ -1512,7 +1512,7 @@ function requestsView() {
       '<h2 class="h2">' + esc(q.kata) + '</h2>' +
       '<div class="row" style="gap:8px">' + stPill(statusOf(q.member, q.kata)) + ICON.arrow.replace('<svg', '<svg role="img" aria-label="changes to" style="width:20px;height:20px"').replace(' aria-hidden="true"', '') + stPill(q.to) + '</div>' +
       (q.note ? '<div class="quote">“' + esc(q.note) + '”</div>' : '') +
-      (q.sentBy && q.sentBy !== q.member ? '<div class="hint" style="margin:0">Sent with ' + esc(q.sentBy) + '’s code</div>' : '') +
+      (q.sentBy && q.sentBy !== q.member ? '<div class="hint" style="margin:0">Sent by ' + esc(q.sentBy) + '</div>' : '') +
       '<div class="btnrow"><button type="button" class="btn" data-decide="' + esc(q.id) + '" data-verdict="Declined">Decline</button><button type="button" class="btn primary" style="flex:1.4" data-decide="' + esc(q.id) + '" data-verdict="Approved">Approve</button></div></article>';
   });
   if (recent.length) {
@@ -2122,7 +2122,7 @@ function openPerson(name) {
   }
   var fam = p.family.map(function (f) {
     return '<div class="frow"><span class="grow">Also sees ' + esc(f) + '</span><button type="button" class="btn" data-unfam="' + esc(f) + '" data-acct="' + esc(name) + '">Remove</button></div>';
-  }).join('') + p.seenBy.map(function (s) { return '<div class="frow"><span class="grow">Seen by ' + esc(s) + '’s code</span></div>'; }).join('');
+  }).join('') + p.seenBy.map(function (s) { return '<div class="frow"><span class="grow">Seen by ' + esc(s) + '</span></div>'; }).join('');
   openSheet('<div class="grab"></div><h2 id="sheetTitle">' + esc(name) + '</h2><p>' + esc(p.belt ? p.belt + ' belt' : (p.onList ? 'No belt set' : 'Not on the member list')) + '</p>' +
     '<div class="sec" style="border:0;margin:0;padding:0"><h3>Access level</h3><div class="seg lv">' + LEVELS.map(function (l) {
       return '<button type="button" data-level="' + l + '" data-pname="' + esc(name) + '" aria-pressed="' + (p.level === l) + '">' + l + '</button>';
