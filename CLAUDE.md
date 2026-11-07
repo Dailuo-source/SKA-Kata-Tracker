@@ -2,7 +2,7 @@
 
 > **Claude: read this first.** Open only the files a change touches; use the code map to jump to a function.
 > `web/index.html` (~150 KB) and `Code.gs` (~38 KB) are large: search for a function name (e.g. `grep -n "function render" web/index.html`) and read just that function.
-> At the end of a work session, update **Status** and add one line to **Changelog** (keep about 5).
+> At the end of a work session, update **Status** and add one line to **Changelog** (keep about 5). Keep **For Gary** current too: tick off (delete) what's done, add each step Gary must do himself (deploy, sheet menus, settings, checks). App Atlas reads Status, For Gary and Changelog to show where each app is.
 
 Tracks which kata each member of **Scarborough Academy of Karate (SKA)** knows. Sits in the dojo's Wix site and works on phones (Gary: Samsung Android, Chrome).
 
@@ -113,6 +113,16 @@ Inside the `index.html` script, search for:
 - Open, in order: (1) Gary: `clasp push` + `clasp deploy -i …` (script version 17), then the Wix steps in `wix/SETUP.md` (his Wix role needs Edit Site, or the owner helps); (2) everyone with a level connects their website account; (3) point the Lesson Planner's tracker links (`KATA_SITE`) at the Wix Kata Tracker page (it passes `?kata`/`?add` through), since most people won't have the phone app; (4) **remove access codes and the TEMPORARY PASSWORD completely**: `signIn_`, `signInPassword_`, `makeCode_`, `removeCode_`, `menuMakeCode_`, code columns/UI, the code branch in `session_`, `connectWix_` and the page's code form; (5) move to Cloudflare Pages before the phone app is shared (update `TRACKER` in the two Wix page files too).
 
 - Lesson Planner **Add a new student**: `?add=member&from=planner` opens Members and the Add a member form (asks for an instructor/admin code first if needed); after adding it offers **Add another** / **Back to the lesson plan** (Oct 30, page only).
+
+## For Gary
+
+Steps only Gary can do (App Atlas shows these as his to-dos). One line each; delete a line once it's done.
+
+- [ ] Deploy Code.gs as script version 17, then the Wix steps in wix/SETUP.md
+- [ ] Everyone with a level connects their dojo website account
+- [ ] Point the Lesson Planner's tracker links at the Wix Kata Tracker page
+- [ ] Remove access codes and the temporary password
+- [ ] Move to Cloudflare Pages before sharing the phone app
 
 ## Changelog (latest first, keep about 5 lines)
 - 2026-11-03: Desktop: Decline/Approve small and on the kata/name line (Requests, Access)
