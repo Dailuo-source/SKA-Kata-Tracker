@@ -108,9 +108,9 @@ Inside the `index.html` script, search for:
 - Ticking several: `bulk`, `bulkCtx`, `cbx`, `selBar`, `bulkToggle`, `renderBulk`, `bulkAsk`, `saveChanges` (shared with `gSave`)
 
 ## Status
-- Working: all screens, per-person access codes with four levels, requests and approvals, Readiness, phone fallback route, Lesson Planner link, Add member, ticking several rows to set one status. Script version 16.
-- Built, not live yet: dojo website sign-in (page pushed; dormant until Code.gs is deployed and `WIX_KEY` exists).
-- Open, in order: (1) Gary: `clasp push` + `clasp deploy -i …` (script version 17), then the Wix steps in `wix/SETUP.md` (his Wix role needs Edit Site, or the owner helps); (2) everyone with a level connects their website account; (3) point the Lesson Planner's tracker links (`KATA_SITE`) at the Wix Kata Tracker page (it passes `?kata`/`?add` through), since most people won't have the phone app; (4) **remove access codes and the TEMPORARY PASSWORD completely**: `signIn_`, `signInPassword_`, `makeCode_`, `removeCode_`, `menuMakeCode_`, code columns/UI, the code branch in `session_`, `connectWix_` and the page's code form; (5) move to Cloudflare Pages before the phone app is shared (update `TRACKER` in the two Wix page files too).
+- Working: all screens, per-person access codes with four levels, requests and approvals, Readiness, phone fallback route, Lesson Planner link, Add member, ticking several rows to set one status. Script version 17 (2026-11-12).
+- Built, not live yet: dojo website sign-in (Code.gs deployed as v17; dormant until `WIX_KEY` exists).
+- Open, in order: (1) Gary: the Wix steps in `wix/SETUP.md` (his Wix role needs Edit Site, or the owner helps); (2) everyone with a level connects their website account; (3) point the Lesson Planner's tracker links (`KATA_SITE`) at the Wix Kata Tracker page (it passes `?kata`/`?add` through), since most people won't have the phone app; (4) **remove access codes and the TEMPORARY PASSWORD completely**: `signIn_`, `signInPassword_`, `makeCode_`, `removeCode_`, `menuMakeCode_`, code columns/UI, the code branch in `session_`, `connectWix_` and the page's code form; (5) move to Cloudflare Pages before the phone app is shared (update `TRACKER` in the two Wix page files too).
 
 - Lesson Planner **Add a new student**: `?add=member&from=planner` opens Members and the Add a member form (asks for an instructor/admin code first if needed); after adding it offers **Add another** / **Back to the lesson plan** (Oct 30, page only).
 
@@ -118,7 +118,7 @@ Inside the `index.html` script, search for:
 
 Steps only Gary can do (App Atlas shows these as his to-dos). One line each; delete a line once it's done.
 
-- [ ] Deploy Code.gs as script version 17, then the Wix steps in wix/SETUP.md
+- [ ] Do the Wix steps in wix/SETUP.md
 - [ ] Everyone with a level connects their dojo website account
 - [ ] Point the Lesson Planner's tracker links at the Wix Kata Tracker page
 - [ ] Remove access codes and the temporary password
@@ -129,6 +129,7 @@ Steps only Gary can do (App Atlas shows these as his to-dos). One line each; del
 - **Motion pack** (`window.MP`, same copy in every app; Climb Buddy is the model): the `<script>` block before `</body>` in `web/index.html`, set up by the `MP.init({...})` line under it. Panels rise from the bottom and slip back down, toasts rise and slip away (setting `.hidden = true` plays the slip-away first, then hides; the app still reads `.hidden` as true at once), a new screen's pieces rise in one after another, and a new row on the same screen rises in. Unhurried (Gary wants animations easy to see); off under reduced motion. If a close function empties or removes the panel, do it after `MP.ms` (or use `MP.out(el, done)`), or the panel slides away empty.
 
 ## Changelog (latest first, keep about 5 lines)
+- 2026-11-12: Deployed Code.gs as script version 17 (dojo website sign-in, Phone app switch, Ask for more access)
 - 2026-11-12: Motion pack: panels and toasts rise and slip away, new screens rise in, new rows rise in. no service worker
 - 2026-11-03: Desktop: Decline/Approve small and on the kata/name line (Requests, Access)
 - 2026-11-03: Desktop pages fill the full width; inside the dojo website the bar drops its "Kata Tracker" label (page lives under Dojo members)
