@@ -10,6 +10,7 @@
  *   Moderator   – everyone's kata, makes changes, approves requests (no Readiness).
  *   Instructor  – everything except Access (adds Readiness, adding members).
  *   Admin       – everything, plus access levels, access codes and family links.
+ * Kata pictures (one per movement): moderators and up see them, instructors and admins change them.
  * People sign in with a personal access code (Access tab). The old shared instructor
  * password still works as Moderator access for now (see TEMPORARY PASSWORD below).
  *
@@ -25,7 +26,8 @@ var TAB = {
   LOG: 'Log',
   SETTINGS: 'Settings',
   ACCESS: 'Access',
-  REQUESTS: 'Requests'
+  REQUESTS: 'Requests',
+  PICTURES: 'Pictures'
 };
 // Code (Gary, Oct 22): the access code itself, so an admin can give it out again. Only admins see it in the app;
 // anyone the sheet is shared with can see it on the Access tab.
@@ -36,6 +38,14 @@ var FROM_WEB = 'From the website';         // Notes on an Access row made by a f
 var PASS_MAX_MS = 5 * 60 * 1000;           // a website pass is good for 5 minutes, once
 var REQ_HEAD = ['ID', 'Time', 'Type', 'Member', 'Kata', 'From', 'To', 'Note', 'Sent by', 'State', 'Decided by', 'Decided at', 'Was'];
 var LEVELS = ['Member', 'Moderator', 'Instructor', 'Admin'];
+// Kata pictures (Nov 2026): one row per picture. A movement's number is its place in the kata's list
+// (Order), so reordering renumbers. The files sit in one private Drive folder (Script Property PICS_FOLDER).
+var PIC_HEAD = ['ID', 'Kata', 'Order', 'File ID', 'Caption', 'Width', 'Height', 'Added by', 'Added at'];
+var PICS_FOLDER_NAME = 'S.A. Karate Kata Tracker pictures';
+var PIC_MAX_BYTES = 3 * 1024 * 1024;   // one picture, after the page has shrunk it
+var PIC_MAX_PER_KATA = 150;
+var PIC_PART_MAX = 95000;              // one cached piece of an upload (the cache holds 100 KB a value)
+var PIC_MAX_PARTS = 3000;
 
 var FIRST_KATA_COL = 3;          // Progress: A = Member, B = Belt (formula), C onward = kata
 var MAX_SIGNIN_FAILS = 10;       // wrong codes/passwords before sign-in pauses
@@ -151,6 +161,13 @@ function dispatch_(r) {
     addPerson: [addPerson_, 'Admin'],
     removeFamily: [removeFamily_, 'Admin'],
     setPhoneApp: [setPhoneApp_, 'Admin'],
+    getPictures: [getPictures_, 'Moderator'],
+    picDone: [picDone_, 'Moderator'],
+    picPart: [picPart_, 'Instructor'],
+    addPicture: [addPicture_, 'Instructor'],
+    orderPictures: [orderPictures_, 'Instructor'],
+    captionPicture: [captionPicture_, 'Instructor'],
+    removePicture: [removePicture_, 'Instructor'],
     setPassword: [setPassword_, 'Admin']
   };
   var f = fns[action];
@@ -460,6 +477,7 @@ function getData_(ss, s) {
     out.recent = reqs.filter(function (q) { return q.type === 'Kata' && (q.state === 'Approved' || q.state === 'Declined'); })
       .sort(function (a, b) { return b.decidedMs - a.decidedMs; }).slice(0, 12);
     out.log = readLog_(ss, names, 600);
+    out.pictures = picturesByKata_(readPictures_(ss));
   } else {
     out.myRequests = reqs.filter(function (q) {
       return q.type === 'Kata' && names.indexOf(q.member) !== -1 &&
@@ -787,6 +805,189 @@ function newCode_() {
   return out;
 }
 
+/* ---------- Kata pictures: a slideshow per kata, one picture per movement ---------- */
+/*
+ * Moderators and up see them; instructors and admins add, reorder, caption and remove them.
+ * The files are private in Gary's Drive and only ever leave through getPictures, to someone
+ * signed in as a moderator or higher. Nothing is shared by link.
+ * The page shrinks each photo to a JPEG and sends it as web-safe base64, either whole (data)
+ * or, on phones that can only use the address route, in small pieces (picPart) put together here.
+ */
+
+/** The private Drive folder holding every kata picture; made the first time it's needed. */
+function picsRoot_() {
+  var props = PropertiesService.getScriptProperties(), id = props.getProperty('PICS_FOLDER'), f = null;
+  if (id) { try { f = DriveApp.getFolderById(id); if (f.isTrashed()) f = null; } catch (e) { f = null; } }
+  if (!f) { f = DriveApp.createFolder(PICS_FOLDER_NAME); props.setProperty('PICS_FOLDER', f.getId()); }
+  return f;
+}
+
+/** Only files sitting in the pictures folder are ever read or binned, whatever the Pictures tab says. */
+function picFile_(fileId) {
+  var root = PropertiesService.getScriptProperties().getProperty('PICS_FOLDER');
+  if (!root || !fileId) return null;
+  try {
+    var f = DriveApp.getFileById(fileId), par = f.getParents();
+    while (par.hasNext()) { if (par.next().getId() === root) return f.isTrashed() ? null : f; }
+  } catch (e) {}
+  return null;
+}
+
+function readPictures_(ss) {
+  var sh = ss.getSheetByName(TAB.PICTURES);
+  if (!sh) return [];
+  var v = sh.getDataRange().getValues();
+  if (v.length < 2) return [];
+  var h = v[0].map(str_), c = function (name) { return h.indexOf(name); };
+  var out = [];
+  for (var r = 1; r < v.length; r++) {
+    var id = str_(v[r][c('ID')]), kata = str_(v[r][c('Kata')]);
+    if (!id || !kata) continue;
+    out.push({ row: r + 1, id: id, kata: kata, order: Number(v[r][c('Order')]) || 9999, fileId: str_(v[r][c('File ID')]),
+      cap: str_(v[r][c('Caption')]), w: Number(v[r][c('Width')]) || 0, h: Number(v[r][c('Height')]) || 0 });
+  }
+  return out.sort(function (a, b) { return a.order - b.order || a.row - b.row; });
+}
+
+/** { kata name: [{ id, cap, w, h }] in movement order }. File IDs never go to the page. */
+function picturesByKata_(rows) {
+  var out = {};
+  rows.forEach(function (p) { (out[p.kata] = out[p.kata] || []).push({ id: p.id, cap: p.cap, w: p.w, h: p.h }); });
+  return out;
+}
+function picReply_(ss, kata) { return { kata: kata, list: picturesByKata_(readPictures_(ss))[kata] || [] }; }
+
+function picUp_(up) { up = str_(up); if (!/^[A-Za-z0-9]{10,24}$/.test(up)) throw new Error('Bad request.'); return up; }
+function picCaption_(c) { return str_(c).replace(/\s+/g, ' ').slice(0, 120); }
+function picDim_(n) { n = Math.round(Number(n)); return n >= 1 && n <= 20000 ? n : ''; }
+
+/** One piece of a picture on its way up (kept for an hour, until addPicture puts them together). */
+function picPart_(ss, s, key, i, data) {
+  key = picUp_(key); i = Number(i); data = str_(data);
+  if (!(i >= 0 && i < PIC_MAX_PARTS) || i !== Math.floor(i) || !data || data.length > PIC_PART_MAX || /[^A-Za-z0-9_-]/.test(data)) throw new Error('Bad request.');
+  CacheService.getScriptCache().put('pic:' + key + ':' + i, data, 3600);
+  return true;
+}
+
+/** Has this upload been saved? The page asks after sending a picture without being able to read the reply. */
+function picDone_(ss, s, up) {
+  up = picUp_(up);
+  var p = readPictures_(ss).filter(function (x) { return x.id === up; })[0];
+  return p ? picReply_(ss, p.kata) : false;
+}
+
+/**
+ * Adds a picture to the end of a kata's slideshow. up = the page's own ID for this upload, so a
+ * picture sent twice (a retry after a lost reply) is only ever added once.
+ * The picture is either data (whole) or the n pieces sent earlier under key.
+ */
+function addPicture_(ss, s, kata, up, n, w, h, caption, data, key) {
+  kata = str_(kata); up = picUp_(up);
+  if (!readKata_(ss, getSettings_()).some(function (k) { return k.name === kata; })) throw new Error('No kata called ' + kata + '.');
+  var b64 = str_(data);
+  if (!b64) {
+    key = picUp_(key); n = Number(n);
+    if (!(n >= 1 && n <= PIC_MAX_PARTS) || n !== Math.floor(n)) throw new Error('Bad request.');
+    var cache = CacheService.getScriptCache(), parts = [];
+    for (var i = 0; i < n; i += 100) {
+      var keys = [];
+      for (var j = i; j < Math.min(n, i + 100); j++) keys.push('pic:' + key + ':' + j);
+      var got = cache.getAll(keys);
+      keys.forEach(function (k) { parts.push(got[k] || ''); });
+    }
+    if (parts.some(function (p) { return !p; })) throw new Error('The picture didn’t all arrive. Try adding it again.');
+    b64 = parts.join('');
+  }
+  if (/[^A-Za-z0-9_-]/.test(b64) || b64.length > PIC_MAX_BYTES * 1.4) throw new Error('That picture is too big.');
+  var bytes = Utilities.base64DecodeWebSafe(pad64_(b64));
+  if (bytes.length > PIC_MAX_BYTES) throw new Error('That picture is too big.');
+  if (bytes.length < 100 || (bytes[0] & 255) !== 0xFF || (bytes[1] & 255) !== 0xD8) throw new Error('That isn’t a picture the tracker can use.');
+  return withLock_(function () {
+    var rows = readPictures_(ss);
+    if (rows.some(function (p) { return p.id === up; })) return picReply_(ss, kata);   // already saved
+    var mine = rows.filter(function (p) { return p.kata === kata; });
+    if (mine.length >= PIC_MAX_PER_KATA) throw new Error(kata + ' already has ' + PIC_MAX_PER_KATA + ' pictures.');
+    var file = picsRoot_().createFile(Utilities.newBlob(bytes, 'image/jpeg', kata + ' ' + up + '.jpg'));
+    ss.getSheetByName(TAB.PICTURES).appendRow([up, kata, mine.length + 1, file.getId(), picCaption_(caption), picDim_(w), picDim_(h), s.name, new Date()]);
+    picRenumber_(ss, kata);
+    SpreadsheetApp.flush();
+    return picReply_(ss, kata);
+  });
+}
+
+/** Up to 4 pictures at a time, as base64 JPEGs: { id: data } ('' when a file has gone missing). */
+function getPictures_(ss, s, ids) {
+  if (!Array.isArray(ids) || !ids.length || ids.length > 4) throw new Error('Bad request.');
+  var rows = readPictures_(ss), out = {};
+  ids.forEach(function (id) {
+    var p = rows.filter(function (x) { return x.id === str_(id); })[0], f = p && picFile_(p.fileId);
+    out[str_(id)] = f ? Utilities.base64Encode(f.getBlob().getBytes()) : '';
+  });
+  return out;
+}
+
+/** Writes Order as 1, 2, 3… for one kata: in the given ID order, or else in the order it has now. */
+function picRenumber_(ss, kata, ids) {
+  var sh = ss.getSheetByName(TAB.PICTURES);
+  var mine = readPictures_(ss).filter(function (p) { return p.kata === kata; });
+  if (ids) mine.sort(function (a, b) { return ids.indexOf(a.id) - ids.indexOf(b.id); });
+  var col = PIC_HEAD.indexOf('Order') + 1;
+  mine.forEach(function (p, i) { if (p.order !== i + 1) sh.getRange(p.row, col).setValue(i + 1); });
+}
+
+function orderPictures_(ss, s, kata, ids) {
+  kata = str_(kata);
+  if (!Array.isArray(ids)) throw new Error('Bad request.');
+  ids = ids.map(str_);
+  return withLock_(function () {
+    var have = readPictures_(ss).filter(function (p) { return p.kata === kata; }).map(function (p) { return p.id; });
+    var same = have.length === ids.length && have.every(function (id) { return ids.indexOf(id) !== -1; }) &&
+      ids.every(function (id, i) { return ids.indexOf(id) === i; });
+    if (!same) throw new Error('These pictures have changed since you opened them. Refresh and try again.');
+    picRenumber_(ss, kata, ids);
+    SpreadsheetApp.flush();
+    return picReply_(ss, kata);
+  });
+}
+
+function findPicture_(ss, id) {
+  var p = readPictures_(ss).filter(function (x) { return x.id === str_(id); })[0];
+  if (!p) throw new Error('That picture is gone. Refresh and try again.');
+  return p;
+}
+
+function captionPicture_(ss, s, id, caption) {
+  return withLock_(function () {
+    var p = findPicture_(ss, id);
+    ss.getSheetByName(TAB.PICTURES).getRange(p.row, PIC_HEAD.indexOf('Caption') + 1).setValue(picCaption_(caption));
+    SpreadsheetApp.flush();
+    return picReply_(ss, p.kata);
+  });
+}
+
+/** Takes a picture out of the slideshow. Its file goes to the Drive bin (kept there for 30 days). */
+function removePicture_(ss, s, id) {
+  return withLock_(function () {
+    var p = findPicture_(ss, id);
+    var f = picFile_(p.fileId);
+    if (f) { try { f.setTrashed(true); } catch (e) {} }
+    ss.getSheetByName(TAB.PICTURES).deleteRow(p.row);
+    picRenumber_(ss, p.kata);
+    SpreadsheetApp.flush();
+    return picReply_(ss, p.kata);
+  });
+}
+
+/** Sheet menu: makes the pictures folder (asking for the Drive permission the first time) and says where it is. */
+function menuPictures_() {
+  var f = picsRoot_();
+  SpreadsheetApp.getUi().alert('Kata pictures',
+    'Pictures added in the app are saved in your Drive folder "' + f.getName() + '":\n\n' + f.getUrl() +
+    '\n\nKeep the folder private: the app shows the pictures to moderators, instructors and admins only. ' +
+    'Add, reorder and remove pictures in the app (a kata\'s page), not here, so the Pictures tab stays in step.',
+    SpreadsheetApp.getUi().ButtonSet.OK);
+}
+
 /* ---------- Sheet menu ---------- */
 
 function onOpen() {
@@ -798,6 +999,7 @@ function onOpen() {
     .addSeparator()
     .addItem('Show the Lesson Planner key', 'menuPlannerKey_')
     .addItem('Set up website sign-in…', 'menuWebsite_')
+    .addItem('Set up kata pictures…', 'menuPictures_')
     .addToUi();
 }
 
@@ -886,7 +1088,7 @@ function menuPlannerKey_() {
 /* ---------- Reading the tabs ---------- */
 
 function ensureTabs_(ss) {
-  [[TAB.ACCESS, ACCESS_HEAD], [TAB.REQUESTS, REQ_HEAD]].forEach(function (t) {
+  [[TAB.ACCESS, ACCESS_HEAD], [TAB.REQUESTS, REQ_HEAD], [TAB.PICTURES, PIC_HEAD]].forEach(function (t) {
     var sh = ss.getSheetByName(t[0]);
     if (!sh) {
       sh = ss.insertSheet(t[0]);

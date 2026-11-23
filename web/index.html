@@ -448,6 +448,43 @@ body:not(.wide) .rrow .miss{grid-column:1/-1;padding-left:22px}
 .foldbtn[aria-expanded=true] svg{transform:rotate(180deg)}
 .ftag{min-height:32px;padding:0 8px 0 12px;border-radius:16px;border:0;background:var(--ink);color:#fff;font-size:12.5px;font-weight:800;display:inline-flex;align-items:center;gap:6px}
 .ftag svg{width:13px;height:13px}
+/* Kata pictures: one per movement, numbered by their order (moderators and up) */
+.pics{padding:8px 12px;display:flex;flex-direction:column;gap:8px}
+.pics .hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pics .fold{display:flex;align-items:center;gap:8px;flex:1;min-width:0;min-height:34px;border:0;background:none;padding:0;text-align:left;font-family:var(--f-d);font-size:16px;font-weight:800}
+.pics .fold svg{width:18px;height:18px;color:var(--ink2)}
+.pbtn{display:inline-flex;align-items:center;gap:5px;min-height:34px;padding:0 12px;border-radius:17px;border:1.5px solid var(--line2);background:#fff;font-size:13.5px;font-weight:800;cursor:pointer;white-space:nowrap}
+.pbtn svg{width:16px;height:16px}
+.pbtn.red{background:var(--red);border-color:var(--red);color:#fff}
+.pbtn.dis{opacity:.6;pointer-events:none}
+.pbox{display:flex;flex-direction:column;gap:6px}
+.pstage{position:relative;width:100%;margin:0 auto;aspect-ratio:3/4;background:#111;border-radius:14px;overflow:hidden;touch-action:pan-y;-webkit-user-select:none;user-select:none}
+.pstage img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block}
+.pnum{position:absolute;top:8px;left:8px;min-width:40px;height:40px;padding:0 10px;border-radius:20px;background:var(--red);color:#fff;font-family:var(--f-d);font-size:22px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+.pwait{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#C4C4C4;font-weight:700;font-size:13px;text-align:center;padding:0 54px}
+.parr{position:absolute;top:calc(50% - 22px);width:44px;height:44px;border-radius:50%;border:0;background:rgba(0,0,0,.45);color:#fff;display:flex;align-items:center;justify-content:center;padding:0}
+.parr svg{width:22px;height:22px}
+.parr.l{left:6px}
+.parr.r{right:6px}
+.parr:disabled{opacity:.25}
+.pbar{display:flex;align-items:center;gap:8px}
+.pbar .cap{flex:1;min-width:0;font-size:14px;font-weight:700}
+.pbar .cap b{font-family:var(--f-d);font-weight:800}
+.pic-ib{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--line2);background:#fff;display:flex;align-items:center;justify-content:center;flex:none;padding:0}
+.pic-ib svg{width:18px;height:18px}
+.pic-ib:disabled{opacity:.3}
+.pbox.full{position:fixed;inset:0;z-index:60;background:#000;padding:calc(8px + env(safe-area-inset-top)) 8px calc(10px + env(safe-area-inset-bottom));gap:8px}
+.pbox.full .pstage{flex:1;max-width:none!important;aspect-ratio:auto!important;border-radius:0;background:#000}
+.pbox.full .pbar .cap{color:#fff}
+.prow{display:grid;grid-template-columns:24px 56px minmax(0,1fr);gap:6px 8px;align-items:center;padding:8px 0;border-top:1.5px solid var(--line)}
+.prow:first-child{border-top:0}
+.prow .n{grid-row:span 2;text-align:center;font-family:var(--f-d);font-weight:800;font-size:17px}
+.pth{grid-row:span 2;width:56px;height:74px;border-radius:10px;background:#E2E2E0;object-fit:cover}
+.prow .inp{min-width:0;width:100%;height:38px;font-size:15px;padding:0 10px}
+.prow .q{font-weight:800}
+.prow .acts{grid-column:3;display:flex;align-items:center;gap:8px}
+.prow .acts .end{margin-left:auto}
+.prow .pic-ib{width:34px;height:34px}
 </style>
 </head>
 <body>
@@ -549,7 +586,11 @@ var ICON = {
   msg: svg('<path d="M4 5h16v11H9l-5 4z"/>', 2.2),
   ext: svg('<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>', 2.2),
   filter: svg('<path d="M4 6h16M7 12h10M10 18h4"/>', 2.4),
-  x: svg('<path d="M6 6l12 12M18 6L6 18"/>', 2.8)
+  x: svg('<path d="M6 6l12 12M18 6L6 18"/>', 2.8),
+  play: svg('<path d="M8 5l11 7-11 7z"/>', 2.2),
+  pause: svg('<path d="M8 5v14M16 5v14"/>', 2.8),
+  expand: svg('<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>', 2.2),
+  trash: svg('<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/>')
 };
 
 /* ---------- server calls ---------- */
@@ -620,11 +661,12 @@ function call(fn) {
 // Some phones never get the reply at all (the request just hangs), so give up after a while
 // and let call() switch to the script route.
 var FETCH_WAIT_MS = 12000;
-function viaFetch(params) {
+function viaFetch(params, wait) {
+  wait = wait || FETCH_WAIT_MS;   // sending a picture gets longer
   var ctl = window.AbortController ? new AbortController() : null;
-  var timer = setTimeout(function () { if (ctl) ctl.abort(); }, FETCH_WAIT_MS);
+  var timer = setTimeout(function () { if (ctl) ctl.abort(); }, wait);
   var waited = new Promise(function (_, reject) {
-    setTimeout(function () { var x = new Error('timed out'); x.network = true; x.detail = 'no reply after ' + FETCH_WAIT_MS + ' ms'; reject(x); }, FETCH_WAIT_MS + 500);
+    setTimeout(function () { var x = new Error('timed out'); x.network = true; x.detail = 'no reply after ' + wait + ' ms'; reject(x); }, wait + 500);
   });
   return Promise.race([fetch(API_URL, { method: 'POST', body: JSON.stringify(params), redirect: 'follow', signal: ctl ? ctl.signal : undefined }), waited])
     .finally(function () { clearTimeout(timer); })
@@ -826,7 +868,8 @@ function go(tab, member, kata) {
 window.addEventListener('popstate', function (e) {
   var s = e.state || { tab: homeTab() };
   if (!$('scrim').hidden) hideSheet();
-  if (s.sheet) { try { history.replaceState(Object.assign({}, s, { sheet: 0 }), ''); } catch (x) {} }
+  if (pic.full) picFullOff();
+  if (s.sheet || s.pic) { try { history.replaceState(Object.assign({}, s, { sheet: 0, pic: 0 }), ''); } catch (x) {} }
   var changed = (s.tab || homeTab()) !== state.tab || (s.member || null) !== state.member || (s.kata || null) !== state.kata;
   if (!changed) return;
   state.tab = s.tab || homeTab(); state.member = s.member || null; state.kata = s.kata || null; state.needList = null;
@@ -867,6 +910,7 @@ function render() {
   if (sx) { var g2 = document.querySelector('.gwrap'); if (g2) { g2.scrollLeft = sx[0]; g2.scrollTop = sx[1]; } }
   bulk.names = bulk.names.filter(function (n) { return bulk.all.indexOf(n) !== -1; });   // only what's on screen stays ticked
   renderBulk();
+  picPaint();
   var s = $('search');
   if (s) s.addEventListener('input', function () {
     state.query = s.value;
@@ -1014,6 +1058,7 @@ function publicData(d) {
 }
 function signOut(quiet, msg) {
   session = null; store('kt.session', null); sstore('kt.session', null);
+  picClear();
   state.data = publicData(state.data); cacheData();
   state.tab = 'kata'; state.member = null; state.kata = null; state.who = null;
   hideSheet(); render();
@@ -1432,7 +1477,8 @@ function kataGroups() {
           if (isMod()) {
             var know = 0, learning = 0;
             state.data.members.forEach(function (m) { var s = statusOf(m.name, k.name); if (isKnown(s)) know++; else if (s) learning++; });
-            sub += ' · ' + know + ' know' + (learning ? ' · ' + learning + ' learning' : '');
+            var np = hasPics() ? picsOf(k.name).length : 0;
+            sub += ' · ' + know + ' know' + (learning ? ' · ' + learning + ' learning' : '') + (np ? ' · ' + np + (np === 1 ? ' picture' : ' pictures') : '');
           } else if (person) {
             right = stPill(statusOf(person.name, k.name)) + right;
           }
@@ -1477,6 +1523,7 @@ function kataDetail() {
     return state.data.members.filter(function (m) { return statusOf(m.name, k.name) === s; }).length;
   });
   var tileStyle = ['background:#FCEBDD;color:#8A3F0C', 'background:#E3EBFB;color:#1F4BA5', 'background:#111;color:#fff'];
+  try { html += picsCard(k); } catch (e) {}
   html += '<div class="tiles">' + statuses().map(function (s, i) {
     return '<div class="tile" style="' + tileStyle[Math.min(i, 2)] + '"><b>' + counts[i] + '</b><span>' + esc(s) + '</span></div>';
   }).join('') + '</div>';
@@ -1505,6 +1552,349 @@ function kataDetail() {
       }).join('') + '</div></div>';
   });
   return html + '</div>';
+}
+
+/* ----- Kata pictures: a slideshow per kata, one picture per movement ----- */
+/*
+ * Moderators and up see it on a kata's page; instructors and admins add, reorder, caption and
+ * remove pictures. A movement's number is simply its place in the list, so it's never typed.
+ * The script only sends `pictures` once its picture code is deployed; until then none of this shows.
+ * Pictures are private files in Gary's Drive, fetched through the script a few at a time and kept
+ * in memory only (dropped on sign-out).
+ */
+var pic = { kata: null, i: 0, play: false, full: false, busy: false, timer: null, confirm: null, open: recall('kt.picopen') !== '0' };
+var picCache = {}, picKeys = [], picBad = {}, picFlight = false, picTouch = null;
+var PIC_LIMIT = 150;
+function hasPics() { return isMod() && !!(state.data && state.data.pictures); }
+function picsOf(kata) { return (state.data && state.data.pictures && state.data.pictures[kata]) || []; }
+function picKeep(id, src) {
+  if (!picCache[id]) picKeys.push(id);
+  picCache[id] = src;
+  while (picKeys.length > 160) delete picCache[picKeys.shift()];
+}
+function picStop() { pic.play = false; clearInterval(pic.timer); pic.timer = null; }
+function picClear() { picStop(); picCache = {}; picKeys = []; picBad = {}; pic.kata = null; pic.i = 0; pic.confirm = null; if (pic.full) { pic.full = false; document.body.style.overflow = ''; } }
+
+function picsCard(k) {
+  if (!hasPics()) return '';
+  var list = picsOf(k.name), edit = canReady();
+  if (!list.length && !edit) return '';
+  if (pic.kata !== k.name) { picStop(); pic.kata = k.name; pic.i = 0; pic.full = false; }
+  pic.i = Math.max(0, Math.min(pic.i, list.length - 1));
+  var tools = edit ? (list.length ? '<button type="button" class="pbtn" data-picedit>Edit</button>' : '') +
+    '<label class="pbtn' + (pic.busy ? ' dis' : '') + '">' + ICON.plus + 'Add pictures<input type="file" id="picFile" accept="image/*" multiple hidden></label>' : '';
+  if (!list.length) {
+    return '<section class="card pics"><div class="hd"><span class="fold" style="cursor:default">Movements</span>' + tools + '</div>' +
+      '<p class="hint" style="margin:0">No pictures yet. Add one for each movement. They’re numbered 1, 2, 3… in order, and several picked together go in file-name order.</p></section>';
+  }
+  var html = '<section class="card pics"><div class="hd"><button type="button" class="fold" data-picfold aria-expanded="' + pic.open + '">' + (pic.open ? ICON.up : ICON.down) +
+    'Movements<span class="tag soft">' + list.length + (list.length === 1 ? ' picture' : ' pictures') + '</span></button>' + tools + '</div>';
+  if (!pic.open) return html + '</section>';
+  return html + '<div class="pbox' + (pic.full ? ' full' : '') + '" id="picBox">' +
+    '<div class="pstage" id="picStage"><div class="pwait" id="picWait"></div><img id="picImg" alt="" hidden>' +
+    '<span class="pnum" id="picNum"></span>' +
+    '<button type="button" class="parr l" data-picgo="-1" aria-label="Previous movement">' + ICON.back + '</button>' +
+    '<button type="button" class="parr r" data-picgo="1" aria-label="Next movement">' + ICON.go + '</button></div>' +
+    '<div class="pbar"><div class="cap" id="picCap" aria-live="polite"></div>' +
+    '<button type="button" class="pic-ib" id="picPlay" data-picplay></button>' +
+    '<button type="button" class="pic-ib" id="picFullBtn" data-picfull></button></div></div></section>';
+}
+
+/** Fills in the slideshow for the picture it's on (no redraw of the page), then keeps loading the rest. */
+function picPaint() {
+  Array.prototype.forEach.call(document.querySelectorAll('img[data-pthumb]'), function (t) {
+    var s = picCache[t.dataset.pthumb];
+    if (s && t.getAttribute('src') !== s) t.src = s;
+  });
+  var img = $('picImg');
+  if (img && state.kata) {
+    var list = picsOf(state.kata), p = list[pic.i];
+    if (!p) return;
+    var st = $('picStage'), ratio = p.w && p.h ? p.w / p.h : 0.75;
+    st.style.aspectRatio = p.w && p.h ? p.w + ' / ' + p.h : '3 / 4';
+    st.style.maxWidth = 'calc(min(64vh, 620px) * ' + ratio.toFixed(4) + ')';
+    var src = picCache[p.id];
+    if (src) { if (img.getAttribute('src') !== src) img.src = src; img.hidden = false; $('picWait').textContent = ''; }
+    else { img.hidden = true; img.removeAttribute('src'); $('picWait').textContent = picBad[p.id] ? 'Couldn’t load this picture. ' + picBad[p.id] : 'Loading…'; }
+    img.alt = 'Movement ' + (pic.i + 1) + (p.cap ? ': ' + p.cap : '');
+    $('picNum').textContent = pic.i + 1;
+    $('picCap').innerHTML = '<b>' + (pic.i + 1) + ' of ' + list.length + '</b>' + (p.cap ? ' · ' + esc(p.cap) : '');
+    var arrows = st.querySelectorAll('.parr');
+    arrows[0].disabled = pic.i === 0; arrows[1].disabled = pic.i === list.length - 1;
+    var play = $('picPlay'), full = $('picFullBtn');
+    play.innerHTML = pic.play ? ICON.pause : ICON.play;
+    play.setAttribute('aria-label', pic.play ? 'Pause the slideshow' : 'Play the slideshow');
+    play.disabled = list.length < 2;
+    full.innerHTML = pic.full ? ICON.x : ICON.expand;
+    full.setAttribute('aria-label', pic.full ? 'Close full screen' : 'Full screen');
+    $('picBox').classList.toggle('full', pic.full);
+  }
+  picPump();
+}
+
+/** Loads the open kata's pictures three at a time, starting from the one on show. */
+function picPump() {
+  if (picFlight || !hasPics() || !state.kata || state.tab !== 'kata') return;
+  if (!$('picImg') && !document.querySelector('img[data-pthumb]')) return;
+  var list = picsOf(state.kata), ids = [];
+  for (var n = 0; n < list.length && ids.length < 3; n++) {
+    var p = list[(pic.i + n) % list.length];
+    if (!picCache[p.id] && !picBad[p.id]) ids.push(p.id);
+  }
+  if (!ids.length) return;
+  picFlight = true;
+  var asked = session;
+  call('getPictures', ids).then(function (res) {
+    if (session !== asked) return;
+    ids.forEach(function (id) {
+      if (res && res[id]) picKeep(id, 'data:image/jpeg;base64,' + res[id]);
+      else picBad[id] = 'Its file is missing from Drive.';
+    });
+  }, function (err) {
+    ids.forEach(function (id) { picBad[id] = errMsg(err) + ' Tap Refresh to try again.'; });
+  }).then(function () { picFlight = false; picPaint(); });
+}
+
+function picGo(d) {
+  var list = picsOf(state.kata);
+  var n = Math.max(0, Math.min(list.length - 1, pic.i + d));
+  if (!list.length || n === pic.i) { picPaint(); return; }
+  pic.i = n;
+  delete picBad[list[n].id];   // landing on one that failed tries it again
+  picPaint();
+}
+function picPlayToggle() {
+  if (pic.play) { picStop(); picPaint(); return; }
+  var list = picsOf(state.kata);
+  if (list.length < 2) return;
+  if (pic.i >= list.length - 1) pic.i = 0;
+  pic.play = true;
+  pic.timer = setInterval(function () {
+    var l = picsOf(state.kata);
+    if (!$('picImg') || !l.length) { picStop(); return; }
+    if (pic.i >= l.length - 1) { picStop(); picPaint(); return; }
+    var next = l[pic.i + 1];
+    if (!picCache[next.id] && !picBad[next.id]) return;   // wait for the next one to arrive
+    pic.i++; picPaint();
+  }, 3000);
+  picPaint();
+}
+// Full screen is a history step, so the phone's back button closes it.
+function picFull(on) {
+  if (on === pic.full) return;
+  if (on) {
+    pic.full = true; document.body.style.overflow = 'hidden';
+    try { history.pushState(Object.assign(snapshot(), { pic: 1 }), ''); } catch (e) {}
+    picPaint();
+  }
+  else if (history.state && history.state.pic) history.back();
+  else picFullOff();
+}
+function picFullOff() { pic.full = false; document.body.style.overflow = ''; picPaint(); }
+
+document.addEventListener('touchstart', function (e) {
+  picTouch = e.touches.length === 1 && e.target.closest && e.target.closest('#picStage') ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null;
+}, { passive: true });
+document.addEventListener('touchend', function (e) {
+  if (!picTouch) return;
+  var c = e.changedTouches[0], dx = c.clientX - picTouch.x, dy = c.clientY - picTouch.y;
+  picTouch = null;
+  if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.5) { picStop(); picGo(dx < 0 ? 1 : -1); }
+}, { passive: true });
+
+/* Adding pictures: each photo is shrunk to a JPEG on the phone, then sent. */
+function picId() {
+  var a = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789', r = new Uint8Array(16), out = '';
+  crypto.getRandomValues(r);
+  for (var i = 0; i < r.length; i++) out += a.charAt(r[i] % a.length);
+  return out;
+}
+function picImgEl(file) {
+  return new Promise(function (resolve, reject) {
+    var u = URL.createObjectURL(file), im = new Image();
+    im.onload = function () { resolve(im); setTimeout(function () { URL.revokeObjectURL(u); }, 10000); };
+    im.onerror = function () { URL.revokeObjectURL(u); reject(new Error('unreadable')); };
+    im.src = u;
+  });
+}
+function picShrink(file, max, q) {
+  var got;
+  try { got = window.createImageBitmap ? createImageBitmap(file, { imageOrientation: 'from-image' }).catch(function () { return picImgEl(file); }) : picImgEl(file); }
+  catch (e) { got = picImgEl(file); }
+  return got.then(function (bmp) {
+    var w = bmp.naturalWidth || bmp.width, h = bmp.naturalHeight || bmp.height;
+    if (!w || !h) throw new Error('unreadable');
+    var k = Math.min(1, max / Math.max(w, h)), cw = Math.max(1, Math.round(w * k)), ch = Math.max(1, Math.round(h * k));
+    var c = document.createElement('canvas');
+    c.width = cw; c.height = ch;
+    var g = c.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0, 0, cw, ch);
+    g.drawImage(bmp, 0, 0, cw, ch);
+    if (bmp.close) bmp.close();
+    var url = c.toDataURL('image/jpeg', q);
+    if (url.length > 600000) url = c.toDataURL('image/jpeg', Math.max(0.5, q - 0.2));
+    if (url.indexOf('data:image/jpeg;base64,') !== 0) throw new Error('unreadable');
+    return { src: url, w: cw, h: ch, b64: url.slice(23).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') };
+  });
+}
+
+/*
+ * Sending one picture. `up` is this upload's own ID: the script adds a given ID only once, so trying
+ * again after a lost reply can never add the picture twice.
+ * 1. Where fetch replies arrive: one POST.
+ * 2. Where they don't (the address route): POST it anyway without reading the reply, then ask by the
+ *    address route whether it arrived.
+ * 3. If that doesn't work either: in small pieces through the address route (slow, but always works).
+ */
+function picSend(kata, up, shot, say) {
+  var whole = [kata, up, 0, shot.w, shot.h, '', shot.b64];
+  if (!useScriptRoute) {
+    return request('addPicture', whole).then(function (params) { return viaFetch(params, 45000); }).catch(function (e) {
+      if (!e || !e.network) throw e;
+      return picBlind(kata, up, shot, say, whole);
+    });
+  }
+  return picBlind(kata, up, shot, say, whole);
+}
+function picBlind(kata, up, shot, say, whole) {
+  var tried = srecall('kt.picpost') === '0' ? Promise.resolve(false) : request('addPicture', whole).then(function (params) {
+    try { fetch(API_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(params) }).catch(function () {}); }
+    catch (e) { return false; }
+    return picAsk(up, 8);
+  });
+  return tried.then(function (res) {
+    if (res) return res;
+    sstore('kt.picpost', '0');   // don't wait on it again this visit
+    return picParts(kata, up, shot, say);
+  });
+}
+function picAsk(up, tries) {
+  return new Promise(function (r) { setTimeout(r, 2500); })
+    .then(function () { return request('picDone', [up]).then(viaScript); })
+    .then(function (res) { return res || (tries > 1 ? picAsk(up, tries - 1) : false); },
+      function (e) { if (e && e.fromSheet) throw e; return tries > 1 ? picAsk(up, tries - 1) : false; });
+}
+function picParts(kata, up, shot, say, size) {
+  size = size || Number(srecall('kt.picpart')) || 6000;
+  var key = picId(), b = shot.b64, n = Math.ceil(b.length / size), next = 0, done = 0;
+  var worker = function () {
+    if (next >= n) return Promise.resolve();
+    var i = next++;
+    return request('picPart', [key, i, b.substr(i * size, size)]).then(viaScript).then(function () { done++; if (say) say(done / n); return worker(); });
+  };
+  return Promise.all([worker(), worker(), worker()]).then(function () {
+    sstore('kt.picpart', String(size));
+    return request('addPicture', [kata, up, n, shot.w, shot.h, '', '', key]).then(viaScript).catch(function (e) {
+      if (e && e.fromSheet) throw e;
+      return picAsk(up, 4).then(function (res) { if (res) return res; throw new Error('Can’t reach the sheet. Check your connection and try again.'); });
+    });
+  }, function (e) {
+    next = n;   // stop the other pieces
+    if (e && e.fromSheet) throw e;
+    if (size <= 1500) throw new Error('Can’t reach the sheet. Check your connection and try again.');
+    return picParts(kata, up, shot, say, Math.max(1500, Math.floor(size / 2)));   // a shorter address may get through
+  });
+}
+
+function picAdd(files) {
+  var kata = state.kata;
+  var list = Array.prototype.slice.call(files || []).filter(function (f) { return /^image\//.test(f.type) || /\.(jpe?g|png|webp|gif|bmp|heic|heif)$/i.test(f.name); });
+  if (!kata || !list.length || pic.busy || !state.data.pictures) return;
+  var start = picsOf(kata).length;
+  if (start + list.length > PIC_LIMIT) { toast('A kata can have up to ' + PIC_LIMIT + ' pictures. ' + kata + ' has ' + start + '.', true); return; }
+  list.sort(function (a, b) { return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }); });
+  var slow = useScriptRoute, added = 0, skipped = 0;
+  pic.busy = true; render();
+  var step = function (i) {
+    if (i >= list.length) return Promise.resolve();
+    var label = 'Adding picture ' + (i + 1) + ' of ' + list.length;
+    toast(label + '…');
+    return picShrink(list[i], slow ? 1080 : 1280, slow ? 0.74 : 0.8).then(function (shot) { return shot; }, function () { return null; }).then(function (shot) {
+      if (!shot) { skipped++; return step(i + 1); }
+      var up = picId();
+      return picSend(kata, up, shot, function (f) { toast(label + ' · ' + Math.round(f * 100) + '%…'); }).then(function (res) {
+        picKeep(up, shot.src);
+        added++;
+        if (state.data && state.data.pictures) { state.data.pictures[kata] = res.list; cacheData(); }
+        if (state.kata === kata) render();
+        return step(i + 1);
+      });
+    });
+  };
+  step(0).then(function () {
+    pic.busy = false;
+    if (added && state.kata === kata) { pic.i = Math.min(start, picsOf(kata).length - 1); pic.open = true; }
+    render();
+    if (added) toast('Added ' + added + (added === 1 ? ' picture' : ' pictures') + (skipped ? ' · couldn’t read ' + skipped : ''));
+    else toast('Couldn’t read ' + (skipped === 1 ? 'that picture.' : 'those pictures.'), true);
+  }).catch(function (err) {
+    pic.busy = false; render();
+    if (/^SIGNED_OUT/.test((err && err.message) || '') && session) { signOut(true, errMsg(err)); return; }
+    toast((added ? 'Added ' + added + ', then stopped: ' : 'Not added: ') + errMsg(err), true);
+  });
+}
+
+/* Editing (instructors and admins): captions, order, removing. Changes are sent one after another. */
+var picChain = Promise.resolve();
+function picQ(fn) { var p = picChain.then(fn); picChain = p.catch(function () {}); return p; }
+function picSet(kata, list, keep) {
+  if (!state.data || !state.data.pictures) return;
+  state.data.pictures[kata] = list; cacheData();
+  if (keep) { var at = list.map(function (p) { return p.id; }).indexOf(keep.id); if (at >= 0) pic.i = at; }
+  render();
+  if (!$('scrim').hidden && $('picRows')) openPics();
+}
+function openPics() {
+  var kata = state.kata, list = picsOf(kata);
+  if (!list.length) { closeSheet(); return; }
+  openSheet('<div class="grab"></div><h2 id="sheetTitle" tabindex="-1" data-focus style="outline:0">' + esc(kata) + ' pictures</h2>' +
+    '<p>Movements are numbered in this order. Move one up or down and the rest renumber.</p><div id="picRows">' +
+    list.map(function (p, i) {
+      var id = esc(p.id), head = '<div class="prow"><span class="n">' + (i + 1) + '</span><img class="pth" data-pthumb="' + id + '" alt="">';
+      if (pic.confirm === p.id) {
+        return head + '<span class="q">Remove this picture?</span>' +
+          '<div class="acts"><button type="button" class="pbtn" data-picno>Keep</button><button type="button" class="pbtn red end" data-picrm="' + id + '">Remove</button></div></div>';
+      }
+      return head + '<input class="inp" data-piccap="' + id + '" maxlength="120" placeholder="Caption (optional)" value="' + esc(p.cap) + '" aria-label="Caption for movement ' + (i + 1) + '">' +
+        '<div class="acts"><button type="button" class="pic-ib" data-picmv="-1" data-pid="' + id + '" aria-label="Move movement ' + (i + 1) + ' up"' + (i === 0 ? ' disabled' : '') + '>' + ICON.up + '</button>' +
+        '<button type="button" class="pic-ib" data-picmv="1" data-pid="' + id + '" aria-label="Move movement ' + (i + 1) + ' down"' + (i === list.length - 1 ? ' disabled' : '') + '>' + ICON.down + '</button>' +
+        '<button type="button" class="pic-ib end" data-picdel="' + id + '" aria-label="Remove movement ' + (i + 1) + '">' + ICON.trash + '</button></div></div>';
+    }).join('') + '</div><div class="btnrow" style="margin-top:10px"><button type="button" class="btn primary" data-close>Done</button></div>');
+  picPaint();
+}
+function picMove(id, d) {
+  var kata = state.kata, list = picsOf(kata).slice(), i = list.map(function (p) { return p.id; }).indexOf(id), j = i + d;
+  if (i < 0 || j < 0 || j >= list.length) return;
+  var showing = list[pic.i];
+  list.splice(j, 0, list.splice(i, 1)[0]);
+  picSet(kata, list, showing);
+  var ids = list.map(function (p) { return p.id; });
+  picQ(function () { return call('orderPictures', kata, ids); }).catch(function (err) { toast('Order not saved: ' + errMsg(err), true); load(); });
+}
+function picCaption(id, text) {
+  var p = picsOf(state.kata).filter(function (x) { return x.id === id; })[0];
+  if (!p) return;
+  text = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+  if (p.cap === text) return;
+  var was = p.cap;
+  p.cap = text; cacheData(); picPaint();
+  picQ(function () { return call('captionPicture', id, text); }).then(function () { toast('Caption saved'); })
+    .catch(function (err) { p.cap = was; cacheData(); picPaint(); toast('Caption not saved: ' + errMsg(err), true); });
+}
+function picRemove(id) {
+  var kata = state.kata;
+  pic.confirm = null;
+  if (!$('scrim').hidden && $('picRows')) openPics();
+  toast('Removing…');
+  picQ(function () { return call('removePicture', id); }).then(function (res) {
+    var showing = picsOf(kata)[pic.i];
+    delete picCache[id];
+    picSet(kata, res.list, showing && showing.id !== id ? showing : null);
+    toast('Picture removed');
+  }).catch(function (err) {
+    toast('Not removed: ' + errMsg(err), true);
+    if (!$('scrim').hidden && $('picRows')) openPics();
+  });
 }
 
 /* ----- Requests (moderators) ----- */
@@ -2305,6 +2695,15 @@ document.addEventListener('click', function (e) {
   else if (d.rkata) { rd.kata = rd.kata === d.rkata ? null : d.rkata; if (rd.kata) rd.focus = true; render(); }
   else if (d.rfocus !== undefined) { var was = rd.focus || !!rd.kata; rd.focus = !was; if (was) rd.kata = null; render(); }
   else if (d.rclear) { rd[d.rclear] = null; render(); }
+  else if (d.picgo) { picStop(); picGo(+d.picgo); }
+  else if (d.picplay !== undefined) { picPlayToggle(); }
+  else if (d.picfull !== undefined) { picFull(!pic.full); }
+  else if (d.picfold !== undefined) { pic.open = !pic.open; store('kt.picopen', pic.open ? null : '0'); if (!pic.open) picStop(); render(); }
+  else if (d.picedit !== undefined) { pic.confirm = null; openPics(); }
+  else if (d.picmv) { picMove(d.pid, +d.picmv); }
+  else if (d.picdel) { pic.confirm = d.picdel; openPics(); }
+  else if (d.picno !== undefined) { pic.confirm = null; openPics(); }
+  else if (d.picrm) { picRemove(d.picrm); }
   else if (d.signin !== undefined) { openSignIn(); }
   else if (d.signout !== undefined) { signOut(); load(); }
   else if (d.pwmode !== undefined) { state.pwMode = d.pwmode === '1'; var f = t.closest('form'); if (f) { f.outerHTML = signInForm(); } }
@@ -2412,6 +2811,8 @@ document.addEventListener('submit', function (e) {
 
 document.addEventListener('change', function (e) {
   var t = e.target;
+  if (t.id === 'picFile') { picAdd(t.files); t.value = ''; return; }
+  if (t.dataset && t.dataset.piccap) { picCaption(t.dataset.piccap, t.value); return; }
   if (t.dataset && t.dataset.phoneapp) {
     var name = t.dataset.phoneapp, on = t.checked, p = personByName(name);
     call('setPhoneApp', name, on).then(function () {
@@ -2427,8 +2828,11 @@ document.addEventListener('input', function (e) {
 });
 
 document.addEventListener('keydown', function (e) {
+  if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && $('picImg') && $('scrim').hidden &&
+      !/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '')) { picStop(); picGo(e.key === 'ArrowLeft' ? -1 : 1); return; }
   if (e.key === 'Escape') {
-    if (!$('scrim').hidden) closeSheet();
+    if (pic.full) picFull(false);
+    else if (!$('scrim').hidden) closeSheet();
     else if (pending) { pending = null; hideFloat(); }
     else if (bulkPending) { bulkPending = null; hideFloat(); renderBulk(); }
     else if (bulk.names.length) bulkClear();
@@ -2474,6 +2878,8 @@ function load(manual) {
     .then(function (data) {
       if (session !== asked) return;              // signed in or out meanwhile
       if (data.signedOut && session) { state.data = data; signOut(true, 'Please sign in again.'); return; }
+      if (pic.busy && data.pictures && state.data && state.data.pictures) data.pictures = state.data.pictures;
+      picBad = {};
       state.data = data; state.stale = false;
       if (session && data.me) { session.level = data.me.level; }
       cacheData();

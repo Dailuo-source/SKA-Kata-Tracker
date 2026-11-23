@@ -29,6 +29,7 @@ The page is on GitHub Pages (not served by Apps Script) because multi-account ph
 - Sign-in: personal **access code** (6 chars like `K7P-4QX`, no 0/O/1/I/L). Sign-in checks `SHA-256("ska-kata:" + CODE)` (Code hash). Since Oct 22 the code itself is also saved in the Access tab's **Code** column (Gary's choice, so a lost code can be given out again); admins see it in Access (person panel, Copy). Codes made before then show "can't be shown" until a new one is made. Only admins get `access` or `sheetUrl` (the "Open the sheet" link). New/removed code signs that person out. Sheet menu **Kata Tracker → Make an access code…** also makes one. **Sign everyone out** rotates `TOKEN_SECRET`. Gary later wants the dojo website's sign-in instead.
 - Can't remove or demote the last admin who has a code.
 - **Dojo website sign-in (Wix, Nov 2026, replacing access codes).** The Wix site's backend (`wix/backend/kataTracker.web.js`) signs a 5-minute, single-use pass for the logged-in Wix member with secret `KATA_TRACKER_KEY` = Script property `WIX_KEY` (sheet menu **Set up website sign-in…**). Pass = base64url(JSON `{id,name,email,via,exp,n}`) + `.` + hex HMAC-SHA256. Inside the Wix page the tracker posts `{kt:'hello'}` to the parent and gets `{kt:'pass'}` back (`wix/tracker-page.js`, embed ID `#kataTracker`); the phone app goes to the hidden Wix page `kata-sign-in` (`WIX_SIGNIN_URL`), which returns to `#wixpass=…`. `wixSignIn` finds the Access row by **Wix ID**; a first visit makes a Member row named so it can't match a student (e.g. "Maya Chen (website)", Notes "From the website"): seeing any kata needs an admin-approved "Connect to a member" (Family) request. Someone still on an access code inside the Wix page is offered **Connect** (`connectWix`), which keeps their level and folds in a stray website row. Sessions: `c` = `wx:`/`wp:` + hash of the Wix ID. **Phone app** (outside the website) only for rows with Phone app = Yes (Gary's choice: hidden from most people because of the dojo's phone policy); turning it off signs that phone out. "Open in its own tab" only shows for them. Setup steps for Gary/the site owner: `wix/SETUP.md` (needs a Wix role with Edit Site; Gary isn't the owner).
+- **Kata pictures** (Nov 23): moderators and up **see** a kata's slideshow; instructors and admins add, reorder, caption and remove. Members and signed-out visitors never get them (Gary's choice: the photos may show members).
 - **Ask for more access:** anyone signed in can ask for a higher level (Request type **Level**); admins approve in Access (Undo restores the old level).
 - **TEMPORARY PASSWORD**: Settings B3 still signs in as Moderator until an admin taps **Turn it off** (Script Property `PASSWORD_OFF` = 1). To be removed later: search both files for `TEMPORARY PASSWORD`.
 
@@ -38,6 +39,7 @@ The page is on GitHub Pages (not served by Apps Script) because multi-account ph
 - `signIn`: `h` = SHA-256(`t:` + SHA-256(`ska-kata:` + CODE)) → `{p, k, name, level}`; `p` = session (400 days), `k` = HMAC of `p` with `TOKEN_SECRET`, stored as `kt.session` (sessionStorage if "Keep me signed in" is off). Signed calls send `p` and `h` = SHA-256(`t:k:action:a`); no secret is ever in a URL. Level is re-read from Access every call. `SIGNED_OUT:` errors sign the page out.
 - `getData`: only what the level may see. Members: `members`/`progress` (self + family), `myRequests`, `myLinks`; moderators add `requests`, `recent`, `log` (newest 600); admins add `linkRequests`, `access`, `sheetUrl`.
 - Unsigned: `wixSignIn(pass)`. Member: `requestChange`, `withdrawRequest`, `requestLink`, `askLevel(level, note)`, `connectWix(pass)` (code sessions only). Moderator: `saveStatus`, `saveMany` (≤40; page sends 15, falls back to `saveStatus`), `decide`, `undoDecision`. Instructor: `addMember(name, belt)` (appends to Members with Active = Yes and a note, adds the Progress row; refuses duplicates and says when one is set to Active = No). Admin: `setLevel`, `setPhoneApp(name, on)`, `makeCode`, `removeCode`, `addPerson`, `removeFamily`, `setPassword(false)`.
+- Pictures: `getData` gives moderators `pictures` = `{kata: [{id, cap, w, h}]}` in movement order (the page shows nothing picture-related until this key exists). Moderator: `getPictures(ids ≤4)` → `{id: base64 JPEG}`, `picDone(up)`. Instructor: `addPicture(kata, up, n, w, h, caption, data, key)` (whole picture in `data`, or `n` pieces sent first with `picPart(key, i, data)`, kept 1 h in the script cache), `orderPictures(kata, ids)`, `captionPicture(id, text)`, `removePicture(id)` (file goes to the Drive bin). `up` is the page's own ID for an upload: the same ID is only ever added once, so retries are safe. Pictures travel as web-safe base64; only JPEGs under 3 MB are accepted; 150 a kata.
 - 10 wrong codes pause sign-in 15 min. `clientLog` (via `sendBeacon`) logs "Kata Tracker page problem" to Executions.
 - `GET ?api=summary`: kata with rank, Learned at and count still needing it (counts only), for the SKA Lesson Planner.
 - `POST {action:'plannerMembers', key}`: active members' names and belts for the planner; only if `key` = Script Property `PLANNER_KEY` (menu **Show the Lesson Planner key**). Nothing else is shared.
@@ -50,6 +52,7 @@ The page is on GitHub Pages (not served by Apps Script) because multi-account ph
 - **Log**: every app change (time, member, kata, status, who; approvals end "(request)").
 - **Access** (auto): Name, Level, Code hash, Code made, Family, Last signed in, Notes, Code, Wix ID, Email, Phone app (missing headers are added automatically). No row = Member without a code. Deleting a row signs them out.
 - **Requests** (auto): ID, Time, Type (Kata / Family / Level), Member, Kata, From, To, Note, Sent by, State, Decided by, Decided at, Was (for Undo).
+- **Pictures** (auto): ID, Kata, Order, File ID, Caption, Width, Height, Added by, Added at. One row per picture; a movement's number is its place by Order within the kata (never stored as a label). Files are private in Gary's Drive folder **S.A. Karate Kata Tracker pictures** (Script property `PICS_FOLDER`; sheet menu **Set up kata pictures…** makes it and shows the link). The script only reads or bins files that sit in that folder. Change pictures in the app, not in Drive.
 - **Settings**: Dojo name B2, password B3, statuses D2:D10 (anything after the first counts as knowing), belts with colours from row 7.
 
 ## App design rules (`index.html`, one file)
@@ -64,6 +67,7 @@ The page is on GitHub Pages (not served by Apps Script) because multi-account ph
 - Grid: tap steps blank → L → K → P; edits outlined until one **Save** (Undo after). Filters remembered as `kt.grid`. Family = name without trailing Shodan/Nidan/…/Dai/Sho.
 - Kata tab: **Solo**, then **Multi-person**, then **Weapon**, each grouped by Learned at (else rank).
 - Opens from cache `kt.data` (only for the same signed-in person); sign-out drops all but the kata list. Old `kt.pin` is wiped on load. Screens and panels are history steps.
+- **Kata pictures**: a **Movements** card on a kata's page (moderators and up), above the status tiles; it folds (`kt.picopen`). One picture at a time with its number in a red badge, "3 of 21 · caption", arrows / swipe / arrow keys, Play (3 s a picture) and full screen (a history step). Pictures load three at a time through the script and stay in memory only. Instructors and admins get **Add pictures** (several at once go in file-name order; each is shrunk to a JPEG on the phone, 1280 px, or 1080 px on the address route) and **Edit** (caption, up/down, remove with a second tap). Sending: one POST where fetch works; otherwise a POST without reading the reply then `picDone`, and failing that small pieces through the address route (piece size halves if an address is too long; `kt.picpart`/`kt.picpost` in sessionStorage).
 - Planner link: `?kata=<name>&from=planner` opens that kata (sign-in if needed) with "Back to the lesson plan".
 
 ## Changing things
@@ -87,8 +91,8 @@ The page is on GitHub Pages (not served by Apps Script) because multi-account ph
 ## Code map
 | File | Lines | What's in it |
 |---|---|---|
-| `Code.gs` | 1184 | entry (`doGet`, `doPost`, `run_`, `dispatch_`); security (`sha256Hex_`, `hmacHex_`, `codeHash_`, `checkClock_`, `failGate_`, `newSession_`, `signIn_`, `session_`); temp password (`passwordOn_`, `signInPassword_`, `setPassword_`); levels (`rank_`, `need_`, `isMod_`, `isAdmin_`, `visibleNames_`); actions (`getData_`, `requestChange_`, `withdrawRequest_`, `requestLink_`, `saveStatus_`, `saveMany_`, `decide_`, `undoDecision_`, `setLevel_`, `makeCode_`, `removeCode_`, `addPerson_`, `removeFamily_`); reads (`readLog_`, `readKata_`, `readMembers_`, `readProgress_`, `readAccess_`, `readRequests_`, `getSettings_`); `kataSummary_`; `syncProgress_`; menu (`onOpen`, `menuMakeCode_`, `menuSignOutAll_`, `menuPlannerKey_`); `plannerMembers_`, `plannerKey_`; `clientLog_` |
-| `web/index.html` | 2527 | CSS (~14–400), markup (~402–421), one `<script>` (~422–2169) |
+| `Code.gs` | 1386 | entry (`doGet`, `doPost`, `run_`, `dispatch_`); security (`sha256Hex_`, `hmacHex_`, `codeHash_`, `checkClock_`, `failGate_`, `newSession_`, `signIn_`, `session_`); temp password (`passwordOn_`, `signInPassword_`, `setPassword_`); levels (`rank_`, `need_`, `isMod_`, `isAdmin_`, `visibleNames_`); actions (`getData_`, `requestChange_`, `withdrawRequest_`, `requestLink_`, `saveStatus_`, `saveMany_`, `decide_`, `undoDecision_`, `setLevel_`, `makeCode_`, `removeCode_`, `addPerson_`, `removeFamily_`); reads (`readLog_`, `readKata_`, `readMembers_`, `readProgress_`, `readAccess_`, `readRequests_`, `getSettings_`); `kataSummary_`; `syncProgress_`; menu (`onOpen`, `menuMakeCode_`, `menuSignOutAll_`, `menuPlannerKey_`); `plannerMembers_`, `plannerKey_`; `clientLog_`; pictures (`picsRoot_`, `picFile_`, `readPictures_`, `picturesByKata_`, `picPart_`, `picDone_`, `addPicture_`, `getPictures_`, `picRenumber_`, `orderPictures_`, `captionPicture_`, `removePicture_`, `menuPictures_`) |
+| `web/index.html` | 3056 | CSS (~14–488), markup (~490–510), main `<script>` (~511–2943), then the motion pack |
 
 Inside the `index.html` script, search for:
 - Transport: `request`, `call`, `viaFetch`, `viaScript`, `scriptGet`, `report`
@@ -105,11 +109,13 @@ Inside the `index.html` script, search for:
 - Website sign-in: `wixHello`, `usePass`, `wixConnect`, `wixSignedIn`, `openAskLevel`, `sendAskLevel` (Code.gs: `readPass_`, `wixSignIn_`, `connectWix_`, `websiteName_`, `askLevel_`, `setPhoneApp_`, `menuWebsite_`)
 - Sign-in: `signInForm`, `submitSignIn`, `saveSession`, `signOut`, `openAccount`
 - Panels: `openSheet`, `closeSheet`, `openChooser`, `askChange`, `save`, `toast`, `backToPlanner`
+- Kata pictures: `pic` (state), `hasPics`, `picsOf`, `picsCard`, `picPaint`, `picPump`, `picGo`, `picPlayToggle`, `picFull`, `picShrink`, `picSend`, `picBlind`, `picAsk`, `picParts`, `picAdd`, `openPics`, `picMove`, `picCaption`, `picRemove`, `picSet`
 - Ticking several: `bulk`, `bulkCtx`, `cbx`, `selBar`, `bulkToggle`, `renderBulk`, `bulkAsk`, `saveChanges` (shared with `gSave`)
 
 ## Status
 - Working: all screens, per-person access codes with four levels, requests and approvals, Readiness, phone fallback route, Lesson Planner link, Add member, ticking several rows to set one status. Script version 17 (2026-11-12).
 - Built, not live yet: dojo website sign-in (Code.gs deployed as v17; dormant until `WIX_KEY` exists).
+- Built, not live yet: **kata pictures** (Nov 23). The page is published but shows nothing until Code.gs is deployed as script version 18. That version uses Drive (`DriveApp`), so Gary must approve the Drive permission **before** it is deployed (sheet menu **Set up kata pictures…**), or the live tracker stops answering until he does. Not tried in a browser or on a phone yet: syntax and lint checked, and the script's picture functions run against a stand-in sheet.
 - Open, in order: (1) Gary: the Wix steps in `wix/SETUP.md` (his Wix role needs Edit Site, or the owner helps); (2) everyone with a level connects their website account; (3) point the Lesson Planner's tracker links (`KATA_SITE`) at the Wix Kata Tracker page (it passes `?kata`/`?add` through), since most people won't have the phone app; (4) **remove access codes and the TEMPORARY PASSWORD completely**: `signIn_`, `signInPassword_`, `makeCode_`, `removeCode_`, `menuMakeCode_`, code columns/UI, the code branch in `session_`, `connectWix_` and the page's code form; (5) move to Cloudflare Pages before the phone app is shared (update `TRACKER` in the two Wix page files too).
 
 - Lesson Planner **Add a new student**: `?add=member&from=planner` opens Members and the Add a member form (asks for an instructor/admin code first if needed); after adding it offers **Add another** / **Back to the lesson plan** (Oct 30, page only).
@@ -118,6 +124,8 @@ Inside the `index.html` script, search for:
 
 Steps only Gary can do (App Atlas shows these as his to-dos). One line each; delete a line once it's done.
 
+- [ ] Kata pictures, in this order: put the new Code.gs in the script and save; reload the sheet and run Kata Tracker → Set up kata pictures… and approve the Google Drive permission; then deploy as a new version (18)
+- [ ] Kata pictures: try it on the phone (add a few to one kata, reorder, caption, remove), then add each kata's movements
 - [ ] Do the Wix steps in wix/SETUP.md
 - [ ] Everyone with a level connects their dojo website account
 - [ ] Point the Lesson Planner's tracker links at the Wix Kata Tracker page
@@ -129,13 +137,12 @@ Steps only Gary can do (App Atlas shows these as his to-dos). One line each; del
 - **Motion pack** (`window.MP`, same copy in every app; Climb Buddy is the model): the `<script>` block before `</body>` in `web/index.html`, set up by the `MP.init({...})` line under it. Panels rise from the bottom and slip back down, toasts rise and slip away (setting `.hidden = true` plays the slip-away first, then hides; the app still reads `.hidden` as true at once), a new screen's pieces rise in one after another, and a new row on the same screen rises in. Unhurried (Gary wants animations easy to see); off under reduced motion. If a close function empties or removes the panel, do it after `MP.ms` (or use `MP.out(el, done)`), or the panel slides away empty.
 
 ## Changelog (latest first, keep about 5 lines)
+- 2026-11-23: Kata pictures: a numbered slideshow per kata (moderators and up see it; instructors and admins add, reorder, caption, remove); needs Code.gs deploy as version 18 after the Drive permission
 - 2026-11-12: Deployed Code.gs as script version 17 (dojo website sign-in, Phone app switch, Ask for more access)
 - 2026-11-12: Motion pack: panels and toasts rise and slip away, new screens rise in, new rows rise in. no service worker
 - 2026-11-03: Desktop: Decline/Approve small and on the kata/name line (Requests, Access)
 - 2026-11-03: Desktop pages fill the full width; inside the dojo website the bar drops its "Kata Tracker" label (page lives under Dojo members)
 - 2026-11-03: Dojo website (Wix) sign-in, Phone app switch, Ask for more access; Wix code in `wix/` (needs Code.gs deploy, script version 17)
-- 2026-11-02: Tap animation, tighter spacing everywhere, same-size tick boxes, tick several members/kata and set one status (page only)
-- 2026-10-30: `?add=member&from=planner` link for the Lesson Planner's Add a new student
 
 ## Working efficiently
 - Find code with search first, then read only the relevant lines. Don't read index.html top to bottom.
