@@ -109,6 +109,7 @@ Inside the `index.html` script, search for:
 - Website sign-in: `wixHello`, `usePass`, `wixConnect`, `wixSignedIn`, `openAskLevel`, `sendAskLevel` (Code.gs: `readPass_`, `wixSignIn_`, `connectWix_`, `websiteName_`, `askLevel_`, `setPhoneApp_`, `menuWebsite_`)
 - Sign-in: `signInForm`, `submitSignIn`, `saveSession`, `signOut`, `openAccount`
 - Panels: `openSheet`, `closeSheet`, `openChooser`, `askChange`, `save`, `toast`, `backToPlanner`
+- Motion: `motionOn`, `foldSnap`, `foldPlay`, `foldBox`, `foldPanel`, `slideOpen`, `slideShut`, `panelOpen`, `panelShut`, `riseBelowSwitch`, `picTurn`, `picRowsSnap`, `picRowsPlay`
 - Kata pictures: `pic` (state), `hasPics`, `picsOf`, `picsCard`, `picPaint`, `picPump`, `picGo`, `picPlayToggle`, `picFull`, `picShrink`, `picSend`, `picBlind`, `picAsk`, `picParts`, `picAdd`, `openPics`, `picMove`, `picCaption`, `picRemove`, `picSet`
 - Ticking several: `bulk`, `bulkCtx`, `cbx`, `selBar`, `bulkToggle`, `renderBulk`, `bulkAsk`, `saveChanges` (shared with `gSave`)
 
@@ -124,6 +125,7 @@ Inside the `index.html` script, search for:
 
 Steps only Gary can do (App Atlas shows these as his to-dos). One line each; delete a line once it's done.
 
+- [ ] Look at the new motion: folds sliding (Movements, Overview's Currently learning, Readiness's Kata to focus on; Grid filters on a computer) and pictures sliding; say if any is too slow, too quick or jumps
 - [ ] Kata pictures: try it on the phone (add a few to one kata, reorder, caption, remove), then add each kata's movements
 - [ ] Do the Wix steps in wix/SETUP.md
 - [ ] Everyone with a level connects their dojo website account
@@ -134,14 +136,16 @@ Steps only Gary can do (App Atlas shows these as his to-dos). One line each; del
 ## Motion
 
 - **Motion pack** (`window.MP`, same copy in every app; Climb Buddy is the model): the `<script>` block before `</body>` in `web/index.html`, set up by the `MP.init({...})` line under it. Panels rise from the bottom and slip back down, toasts rise and slip away (setting `.hidden = true` plays the slip-away first, then hides; the app still reads `.hidden` as true at once), a new screen's pieces rise in one after another, and a new row on the same screen rises in. Unhurried (Gary wants animations easy to see); off under reduced motion. If a close function empties or removes the panel, do it after `MP.ms` (or use `MP.out(el, done)`), or the panel slides away empty.
+- **Folds slide open and shut** (Nov 23, same as the SKA Lesson Planner: 380 ms, `foldSnap` before the redraw, `foldPlay` after, called from the click handler). Box folds resize their card (`slideOpen`/`slideShut`): Movements (`picfold`), Grid filters (`gfold`), Readiness "Kata to focus on" (`rfocus`). Panel folds open a row under their button (`panelOpen`/`panelShut`): Overview "Currently learning" (`lopen`), Grid "Pick members" (`gpickopen`). A new fold needs `aria-expanded` on its button, its data key in `FOLD_KEYS` and in the click handler's `fsnap` test, and a box or panel in `foldBox`/`foldPanel`.
+- **Only the changed part moves** (as in Climb Buddy): switching whose kata on My kata keeps the switcher still and raises what's under it (`riseBelowSwitch`). Typing a caption never redraws the panel, so the next tap isn't swallowed.
+- **Kata pictures**: the next/previous movement slides in from its side with the number popping (`picTurn`), a picture that has just loaded fades in (`pic.shown` stops a redraw from fading it again), full screen eases in and out, and in Edit the rows glide to their new places and a removed row slides off (`picRowsSnap`/`picRowsPlay`). All of it is off when `MP.on` is false (reduced motion).
 
 ## Changelog (latest first, keep about 5 lines)
+- 2026-11-23: Motion brought in line with the recent apps: folds slide open and shut, whose-kata switch only moves what changed, pictures slide between movements, Edit rows glide (page only, not tried in a browser)
 - 2026-11-23: Deployed Code.gs as script version 18 (kata pictures) after granting the Drive permission; pictures folder made
 - 2026-11-23: Kata pictures: a numbered slideshow per kata (moderators and up see it; instructors and admins add, reorder, caption, remove)
 - 2026-11-12: Deployed Code.gs as script version 17 (dojo website sign-in, Phone app switch, Ask for more access)
 - 2026-11-12: Motion pack: panels and toasts rise and slip away, new screens rise in, new rows rise in. no service worker
-- 2026-11-03: Desktop: Decline/Approve small and on the kata/name line (Requests, Access)
-- 2026-11-03: Desktop pages fill the full width; inside the dojo website the bar drops its "Kata Tracker" label (page lives under Dojo members)
 
 ## Working efficiently
 - Find code with search first, then read only the relevant lines. Don't read index.html top to bottom.

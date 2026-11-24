@@ -1562,7 +1562,7 @@ function kataDetail() {
  * Pictures are private files in Gary's Drive, fetched through the script a few at a time and kept
  * in memory only (dropped on sign-out).
  */
-var pic = { kata: null, i: 0, play: false, full: false, busy: false, timer: null, confirm: null, open: recall('kt.picopen') !== '0' };
+var pic = { kata: null, i: 0, play: false, full: false, busy: false, timer: null, confirm: null, shown: null, open: recall('kt.picopen') !== '0' };
 var picCache = {}, picKeys = [], picBad = {}, picFlight = false, picTouch = null;
 var PIC_LIMIT = 150;
 function hasPics() { return isMod() && !!(state.data && state.data.pictures); }
@@ -1573,7 +1573,7 @@ function picKeep(id, src) {
   while (picKeys.length > 160) delete picCache[picKeys.shift()];
 }
 function picStop() { pic.play = false; clearInterval(pic.timer); pic.timer = null; }
-function picClear() { picStop(); picCache = {}; picKeys = []; picBad = {}; pic.kata = null; pic.i = 0; pic.confirm = null; if (pic.full) { pic.full = false; document.body.style.overflow = ''; } }
+function picClear() { picStop(); picCache = {}; picKeys = []; picBad = {}; pic.kata = null; pic.i = 0; pic.confirm = null; pic.shown = null; if (pic.full) { pic.full = false; document.body.style.overflow = ''; } }
 
 function picsCard(k) {
   if (!hasPics()) return '';
@@ -1614,8 +1614,14 @@ function picPaint() {
     st.style.aspectRatio = p.w && p.h ? p.w + ' / ' + p.h : '3 / 4';
     st.style.maxWidth = 'calc(min(64vh, 620px) * ' + ratio.toFixed(4) + ')';
     var src = picCache[p.id];
-    if (src) { if (img.getAttribute('src') !== src) img.src = src; img.hidden = false; $('picWait').textContent = ''; }
-    else { img.hidden = true; img.removeAttribute('src'); $('picWait').textContent = picBad[p.id] ? 'Couldn’t load this picture. ' + picBad[p.id] : 'Loading…'; }
+    if (src) {
+      if (img.getAttribute('src') !== src) img.src = src;
+      img.hidden = false; $('picWait').textContent = '';
+      // A picture that has just arrived fades in (a redraw of the one already showing doesn't)
+      if (pic.shown !== p.id && motionOn()) img.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: 'ease-out' });
+      pic.shown = p.id;
+    }
+    else { img.hidden = true; img.removeAttribute('src'); pic.shown = null; $('picWait').textContent = picBad[p.id] ? 'Couldn’t load this picture. ' + picBad[p.id] : 'Loading…'; }
     img.alt = 'Movement ' + (pic.i + 1) + (p.cap ? ': ' + p.cap : '');
     $('picNum').textContent = pic.i + 1;
     $('picCap').innerHTML = '<b>' + (pic.i + 1) + ' of ' + list.length + '</b>' + (p.cap ? ' · ' + esc(p.cap) : '');
@@ -1661,7 +1667,18 @@ function picGo(d) {
   if (!list.length || n === pic.i) { picPaint(); return; }
   pic.i = n;
   delete picBad[list[n].id];   // landing on one that failed tries it again
+  picTurn(d);
+}
+/** Shows the movement pic.i is now on, sliding in from the side it came from. */
+function picTurn(dir) {
+  var list = picsOf(state.kata), p = list[pic.i];
+  if (p && picCache[p.id]) pic.shown = p.id;   // the slide is its entrance; no extra fade
   picPaint();
+  if (!motionOn() || !$('picImg')) return;
+  var from = { opacity: 0, transform: 'translateX(' + (dir < 0 ? -40 : 40) + 'px)' }, to = { opacity: 1, transform: 'none' };
+  [$('picImg'), $('picWait')].forEach(function (e) { e.animate([from, to], { duration: FOLD_MS, easing: FOLD_EASE }); });
+  $('picNum').animate([{ transform: 'scale(.55)', opacity: .3 }, { transform: 'none', opacity: 1 }], { duration: FOLD_MS, easing: FOLD_EASE });
+  $('picCap').animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: 'ease-out' });
 }
 function picPlayToggle() {
   if (pic.play) { picStop(); picPaint(); return; }
@@ -1675,7 +1692,7 @@ function picPlayToggle() {
     if (pic.i >= l.length - 1) { picStop(); picPaint(); return; }
     var next = l[pic.i + 1];
     if (!picCache[next.id] && !picBad[next.id]) return;   // wait for the next one to arrive
-    pic.i++; picPaint();
+    pic.i++; picTurn(1);
   }, 3000);
   picPaint();
 }
@@ -1686,11 +1703,15 @@ function picFull(on) {
     pic.full = true; document.body.style.overflow = 'hidden';
     try { history.pushState(Object.assign(snapshot(), { pic: 1 }), ''); } catch (e) {}
     picPaint();
+    if (motionOn() && $('picBox')) $('picBox').animate([{ opacity: 0, transform: 'scale(.94)' }, { opacity: 1, transform: 'none' }], { duration: 320, easing: FOLD_EASE });
   }
   else if (history.state && history.state.pic) history.back();
   else picFullOff();
 }
-function picFullOff() { pic.full = false; document.body.style.overflow = ''; picPaint(); }
+function picFullOff() {
+  pic.full = false; document.body.style.overflow = ''; picPaint();
+  if (motionOn() && $('picStage')) $('picStage').animate([{ opacity: .2, transform: 'scale(1.06)' }, { opacity: 1, transform: 'none' }], { duration: 320, easing: FOLD_EASE });
+}
 
 document.addEventListener('touchstart', function (e) {
   picTouch = e.touches.length === 1 && e.target.closest && e.target.closest('#picStage') ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null;
@@ -1825,6 +1846,7 @@ function picAdd(files) {
     pic.busy = false;
     if (added && state.kata === kata) { pic.i = Math.min(start, picsOf(kata).length - 1); pic.open = true; }
     render();
+    if (added && state.kata === kata) picTurn(1);
     if (added) toast('Added ' + added + (added === 1 ? ' picture' : ' pictures') + (skipped ? ' · couldn’t read ' + skipped : ''));
     else toast('Couldn’t read ' + (skipped === 1 ? 'that picture.' : 'those pictures.'), true);
   }).catch(function (err) {
@@ -1850,7 +1872,7 @@ function openPics() {
   openSheet('<div class="grab"></div><h2 id="sheetTitle" tabindex="-1" data-focus style="outline:0">' + esc(kata) + ' pictures</h2>' +
     '<p>Movements are numbered in this order. Move one up or down and the rest renumber.</p><div id="picRows">' +
     list.map(function (p, i) {
-      var id = esc(p.id), head = '<div class="prow"><span class="n">' + (i + 1) + '</span><img class="pth" data-pthumb="' + id + '" alt="">';
+      var id = esc(p.id), head = '<div class="prow" data-prow="' + id + '"><span class="n">' + (i + 1) + '</span><img class="pth" data-pthumb="' + id + '" alt="">';
       if (pic.confirm === p.id) {
         return head + '<span class="q">Remove this picture?</span>' +
           '<div class="acts"><button type="button" class="pbtn" data-picno>Keep</button><button type="button" class="pbtn red end" data-picrm="' + id + '">Remove</button></div></div>';
@@ -1862,12 +1884,28 @@ function openPics() {
     }).join('') + '</div><div class="btnrow" style="margin-top:10px"><button type="button" class="btn primary" data-close>Done</button></div>');
   picPaint();
 }
+function picRowsSnap() {
+  var m = {};
+  Array.prototype.forEach.call(document.querySelectorAll('.prow[data-prow]'), function (r) { m[r.dataset.prow] = r.getBoundingClientRect().top; });
+  return m;
+}
+function picRowsPlay(m) {
+  if (!motionOn()) return;
+  Array.prototype.forEach.call(document.querySelectorAll('.prow[data-prow]'), function (r) {
+    var was = m[r.dataset.prow];
+    if (was == null) return;
+    var dy = was - r.getBoundingClientRect().top;
+    if (Math.abs(dy) > 1) r.animate([{ transform: 'translateY(' + dy + 'px)' }, { transform: 'none' }], { duration: FOLD_MS, easing: FOLD_EASE });
+  });
+}
 function picMove(id, d) {
   var kata = state.kata, list = picsOf(kata).slice(), i = list.map(function (p) { return p.id; }).indexOf(id), j = i + d;
   if (i < 0 || j < 0 || j >= list.length) return;
   var showing = list[pic.i];
   list.splice(j, 0, list.splice(i, 1)[0]);
+  var rows = picRowsSnap();
   picSet(kata, list, showing);
+  picRowsPlay(rows);
   var ids = list.map(function (p) { return p.id; });
   picQ(function () { return call('orderPictures', kata, ids); }).catch(function (err) { toast('Order not saved: ' + errMsg(err), true); load(); });
 }
@@ -1889,8 +1927,16 @@ function picRemove(id) {
   picQ(function () { return call('removePicture', id); }).then(function (res) {
     var showing = picsOf(kata)[pic.i];
     delete picCache[id];
-    picSet(kata, res.list, showing && showing.id !== id ? showing : null);
-    toast('Picture removed');
+    var finish = function () {
+      var rows = picRowsSnap();
+      picSet(kata, res.list, showing && showing.id !== id ? showing : null);
+      picRowsPlay(rows);
+      toast('Picture removed');
+    };
+    var row = motionOn() && Array.prototype.filter.call(document.querySelectorAll('.prow[data-prow]'), function (r) { return r.dataset.prow === id; })[0];
+    if (!row) { finish(); return; }
+    row.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateX(56px)' }], { duration: 260, easing: 'ease-in', fill: 'forwards' });
+    setTimeout(finish, 260);
   }).catch(function (err) {
     toast('Not removed: ' + errMsg(err), true);
     if (!$('scrim').hidden && $('picRows')) openPics();
@@ -2625,6 +2671,103 @@ function save(change, isUndo) {
     });
 }
 
+/* ---------- folds slide open and shut (Gary, Nov 23; same as the SKA Lesson Planner) ----------
+   Before a fold tap redraws the screen, note each fold's size; afterwards a fold that opened grows from
+   its old height while its contents ease in, and one that shut keeps its old contents on screen while it
+   slides closed. Box folds resize their whole card; panel folds are a row that opens under its button. */
+var FOLD_KEYS = ['picfold', 'gfold', 'rfocus', 'lopen', 'gpickopen'];
+var FOLD_MS = 380, FOLD_EASE = 'cubic-bezier(.2,.8,.25,1)';
+function motionOn() { return !!(window.MP && MP.on); }
+function foldOf(b) { for (var i = 0; i < FOLD_KEYS.length; i++) { if (b.dataset[FOLD_KEYS[i]] !== undefined) return FOLD_KEYS[i]; } return ''; }
+function foldBtns(root) { return Array.prototype.filter.call(root.querySelectorAll('button[aria-expanded]'), foldOf); }
+function foldKey(b) { var k = foldOf(b); return k + '|' + b.dataset[k]; }
+function foldBox(b) { var k = foldOf(b); return k === 'picfold' ? b.closest('.pics') : (k === 'gfold' || k === 'rfocus') ? b.closest('.cardx') : null; }
+function foldPanel(b) {
+  var k = foldOf(b);
+  if (k === 'lopen') { var n = b.nextElementSibling; return n && n.classList.contains('ppl') ? n : null; }
+  if (k === 'gpickopen') { var fp = b.closest('.fpanel'), g = fp && fp.querySelector('.picklist'); return g ? g.parentNode : null; }
+  return null;
+}
+function foldSnap(t) {
+  if (!motionOn()) return null;
+  var root = t.closest('#sheet') ? $('sheet') : app, m = {};
+  foldBtns(root).forEach(function (b) {
+    var c = foldBox(b), p = c ? null : foldPanel(b);
+    m[foldKey(b)] = { b: b, c: c, p: p, open: b.getAttribute('aria-expanded') === 'true', h: c ? c.offsetHeight : p ? p.offsetHeight : 0 };
+  });
+  return { root: root, m: m };
+}
+function foldPlay(s) {
+  if (!s) return;
+  foldBtns(s.root).forEach(function (b) {
+    var o = s.m[foldKey(b)];
+    if (!o) return;
+    var open = b.getAttribute('aria-expanded') === 'true';
+    if (open === o.open) return;
+    try {
+      var c = foldBox(b);
+      if (c) { if (c !== o.c && o.c) (open ? slideOpen : slideShut)({ o: o, b: b, c: c }); }
+      else if (open) panelOpen(foldPanel(b));
+      else panelShut(b, o.p, o.h);
+    } catch (e) {}
+  });
+}
+function headOf(c, b) { var h = b; while (h.parentElement && h.parentElement !== c) h = h.parentElement; return h; }
+function after(h) { var o = []; for (var n = h.nextElementSibling; n; n = n.nextElementSibling) o.push(n); return o; }
+function slideOpen(j) {
+  var c = j.c, h1 = c.offsetHeight, h0 = Math.min(j.o.h, h1);
+  if (h1 - h0 < 2) return;
+  c.style.overflow = 'hidden';
+  var a = c.animate([{ height: h0 + 'px' }, { height: h1 + 'px' }], { duration: FOLD_MS, easing: FOLD_EASE });
+  after(headOf(c, j.b)).forEach(function (e) { e.animate([{ opacity: 0, transform: 'translateY(-10px)' }, { opacity: 1, transform: 'none' }], { duration: FOLD_MS, easing: 'ease-out' }); });
+  a.onfinish = a.oncancel = function () { c.style.overflow = ''; };
+}
+function slideShut(j) {
+  var c = j.c, old = j.o.c, h1 = c.offsetHeight, h0 = j.o.h;
+  if (h0 - h1 < 2) return;
+  var nh = headOf(c, j.b).cloneNode(true);
+  headOf(old, j.o.b).replaceWith(nh);
+  old.style.overflow = 'hidden'; old.style.pointerEvents = 'none';
+  c.replaceWith(old);
+  var a = old.animate([{ height: h0 + 'px' }, { height: h1 + 'px' }], { duration: FOLD_MS - 40, easing: FOLD_EASE });
+  after(nh).forEach(function (e) { e.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-10px)' }], { duration: FOLD_MS - 120, easing: 'ease-in', fill: 'forwards' }); });
+  a.onfinish = a.oncancel = function () { if (old.isConnected) old.replaceWith(c); };
+}
+/* A row inside a flex column also gives up (or takes) the column's gap, so nothing jumps at the end. */
+function rowGap(el) { var p = el.parentNode; return p && p.nodeType === 1 ? (parseFloat(getComputedStyle(p).rowGap) || 0) : 0; }
+function panelOpen(p) {
+  if (!p) return;
+  var h = p.offsetHeight, cs = getComputedStyle(p), g = rowGap(p);
+  if (h < 2) return;
+  p.style.overflow = 'hidden';
+  var a = p.animate([{ height: '0px', paddingTop: '0px', paddingBottom: '0px', marginBottom: -g + 'px', opacity: 0 },
+    { height: h + 'px', paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, marginBottom: '0px', opacity: 1 }], { duration: FOLD_MS, easing: FOLD_EASE });
+  a.onfinish = a.oncancel = function () { p.style.overflow = ''; };
+}
+function panelShut(b, old, h) {
+  if (!old || h < 2) return;
+  var at = foldOf(b) === 'gpickopen' ? b.closest('.frow2') : b;
+  if (!at || !at.parentNode) return;
+  old.style.overflow = 'hidden'; old.style.pointerEvents = 'none';
+  at.parentNode.insertBefore(old, at.nextSibling);
+  var cs = getComputedStyle(old), g = rowGap(old);
+  var a = old.animate([{ height: h + 'px', paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, marginBottom: '0px', opacity: 1 },
+    { height: '0px', paddingTop: '0px', paddingBottom: '0px', marginBottom: -g + 'px', opacity: 0 }], { duration: FOLD_MS - 40, easing: FOLD_EASE, fill: 'forwards' });
+  a.onfinish = a.oncancel = function () { old.remove(); };
+}
+/* A switch on the same screen (whose kata): the switcher stays still and only what's under it rises in. */
+function riseBelowSwitch() {
+  if (!motionOn()) return;
+  setTimeout(function () {
+    var st = app.querySelector('.stack');
+    if (!st) return;
+    Array.prototype.forEach.call(app.children, function (e) { e.classList.remove('mp-rise'); e.style.animationDelay = ''; });
+    Array.prototype.slice.call(st.children, 1, 13).forEach(function (e, k) {
+      e.classList.remove('mp-rise'); void e.offsetWidth; e.classList.add('mp-rise'); e.style.animationDelay = k * 70 + 'ms';
+    });
+  }, 0);
+}
+
 /* ---------- sheets, floats, toasts ---------- */
 function openSheet(html) {
   clearTimeout(toastTimer); if (!pending) hideFloat();
@@ -2663,6 +2806,8 @@ document.addEventListener('click', function (e) {
     return;
   }
   var d = t.dataset;
+  var fsnap = (d.picfold !== undefined || d.gfold !== undefined || d.rfocus !== undefined || d.gpickopen !== undefined || d.lopen || d.rkata || d.rclear) ? foldSnap(t) : null;
+  if (fsnap) Promise.resolve().then(function () { foldPlay(fsnap); });
   if (t.id === 'acctBtn' || d.acct !== undefined) { if (session) openAccount(); else openSignIn(); }
   else if (d.goto) {
     state.fromPlanner = false;
@@ -2708,7 +2853,7 @@ document.addEventListener('click', function (e) {
   else if (d.signout !== undefined) { signOut(); load(); }
   else if (d.pwmode !== undefined) { state.pwMode = d.pwmode === '1'; var f = t.closest('form'); if (f) { f.outerHTML = signInForm(); } }
   else if (d.tab) { if (d.tab === state.tab && !state.member && !state.kata) { scrollTop(); return; } state.fromPlanner = false; go(d.tab); }
-  else if (d.whopick) { state.who = d.whopick; render(); }
+  else if (d.whopick) { state.who = d.whopick; render(); riseBelowSwitch(); }
   else if (d.linkopen !== undefined) { openLink(); }
   else if (d.ask !== undefined) { openAsk(d.whom, d.ask); }
   else if (d.askto !== undefined) {
