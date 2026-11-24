@@ -92,7 +92,7 @@ The page is on GitHub Pages (not served by Apps Script) because multi-account ph
 | File | Lines | What's in it |
 |---|---|---|
 | `Code.gs` | 1386 | entry (`doGet`, `doPost`, `run_`, `dispatch_`); security (`sha256Hex_`, `hmacHex_`, `codeHash_`, `checkClock_`, `failGate_`, `newSession_`, `signIn_`, `session_`); temp password (`passwordOn_`, `signInPassword_`, `setPassword_`); levels (`rank_`, `need_`, `isMod_`, `isAdmin_`, `visibleNames_`); actions (`getData_`, `requestChange_`, `withdrawRequest_`, `requestLink_`, `saveStatus_`, `saveMany_`, `decide_`, `undoDecision_`, `setLevel_`, `makeCode_`, `removeCode_`, `addPerson_`, `removeFamily_`); reads (`readLog_`, `readKata_`, `readMembers_`, `readProgress_`, `readAccess_`, `readRequests_`, `getSettings_`); `kataSummary_`; `syncProgress_`; menu (`onOpen`, `menuMakeCode_`, `menuSignOutAll_`, `menuPlannerKey_`); `plannerMembers_`, `plannerKey_`; `clientLog_`; pictures (`picsRoot_`, `picFile_`, `readPictures_`, `picturesByKata_`, `picPart_`, `picDone_`, `addPicture_`, `getPictures_`, `picRenumber_`, `orderPictures_`, `captionPicture_`, `removePicture_`, `menuPictures_`) |
-| `web/index.html` | 3056 | CSS (~14–488), markup (~490–510), main `<script>` (~511–2943), then the motion pack |
+| `web/index.html` | 3201 | CSS (~14–488), markup (~490–510), main `<script>` (~511–3088), then the motion pack |
 
 Inside the `index.html` script, search for:
 - Transport: `request`, `call`, `viaFetch`, `viaScript`, `scriptGet`, `report`
